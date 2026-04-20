@@ -1,0 +1,34 @@
+version: "3.9"
+
+services:
+  db-test:
+    image: postgres:16
+    container_name: postgres-detective-test
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: test_db
+      TZ: UTC
+    ports:
+      - "5430:5432"
+    networks:
+      - test-net
+
+  detective-manager-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: detective-manager-test
+    depends_on:
+      - db-test
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db-test:5432/test_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_PROFILES_ACTIVE: test
+    networks:
+      - test-net
+
+networks:
+  test-net:
+    driver: bridge
