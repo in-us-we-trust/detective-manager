@@ -1,6 +1,6 @@
 # detective-manager
 
-Microservicio encargado de gestionar la detección de intrusos y eventos atípicos en el ecosistema Melody. Recibe eventos desde microcontroladores IoT, los analiza mediante un servicio de machine learning externo, persiste el resultado y notifica a los usuarios afectados en caso de detectar un intruso.
+Microservicio encargado de gestionar la detección de intrusos y eventos atípicos en el ecosistema Hogar seguro. Recibe eventos desde microcontroladores IoT, los analiza mediante un servicio de machine learning externo, persiste el resultado y notifica a los usuarios afectados en caso de detectar un intruso.
 
 ## Flujo principal
 
