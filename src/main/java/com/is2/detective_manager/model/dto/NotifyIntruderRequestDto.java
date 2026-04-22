@@ -12,4 +12,6 @@ public class NotifyIntruderRequestDto {
 
   @JsonProperty("device_id")
   private String deviceId;
+
+  private String imageUrl;
 }

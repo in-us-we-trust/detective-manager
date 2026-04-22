@@ -1,6 +1,8 @@
 package com.is2.detective_manager.client;
 
+import com.is2.detective_manager.model.dto.NotifyIntruderRequestDto;
+
 public interface UsersManagerApiClient {
 
-  void notifyIntruder(String deviceId);
+  void notifyIntruder(NotifyIntruderRequestDto request);
 }

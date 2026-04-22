@@ -1,5 +1,6 @@
 package com.is2.detective_manager.mapper;
 
+import com.is2.detective_manager.model.dto.NotifyIntruderRequestDto;
 import com.is2.detective_manager.model.dto.ReportEventRequestDto;
 import com.is2.detective_manager.model.dto.ReportEventResponseDto;
 import com.is2.detective_manager.model.entity.Event;
@@ -21,4 +22,6 @@ public interface EventMapper {
   @Mapping(target = "eventId", source = "id")
   @Mapping(target = "intruder", source = "intruder")
   ReportEventResponseDto toReportEventResponseDto(Event event);
+
+  NotifyIntruderRequestDto toNotifyIntruderRequestDto(String deviceId, String imageUrl);
 }

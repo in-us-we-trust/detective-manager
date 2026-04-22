@@ -7,6 +7,7 @@ import com.is2.detective_manager.exception.DetectiveException;
 import com.is2.detective_manager.exception.ExceptionEnum;
 import com.is2.detective_manager.mapper.EventMapper;
 import com.is2.detective_manager.model.dto.MlAnalysisRequestDto;
+import com.is2.detective_manager.model.dto.NotifyIntruderRequestDto;
 import com.is2.detective_manager.model.dto.ReportEventRequestDto;
 import com.is2.detective_manager.model.dto.ReportEventResponseDto;
 import com.is2.detective_manager.model.entity.Event;
@@ -48,7 +49,9 @@ public class EventServiceImpl implements EventService {
 
     if (isIntruder) {
       log.info("Intruder detected for device: {}, sending notification", deviceId);
-      usersManagerApiClient.notifyIntruder(deviceId);
+      NotifyIntruderRequestDto notifyRequest =
+          eventMapper.toNotifyIntruderRequestDto(deviceId, imageUrl);
+      usersManagerApiClient.notifyIntruder(notifyRequest);
     }
 
     return eventMapper.toReportEventResponseDto(event);

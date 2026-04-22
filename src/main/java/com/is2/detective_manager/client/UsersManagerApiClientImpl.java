@@ -19,14 +19,13 @@ public class UsersManagerApiClientImpl implements UsersManagerApiClient {
   }
 
   @Override
-  public void notifyIntruder(String deviceId) {
+  public void notifyIntruder(NotifyIntruderRequestDto request) {
     String url = baseUrl + "/api/users-manager/notifications/intruder";
-    log.info("Notifying users manager of intruder for device: {}", deviceId);
+    log.info("Notifying users manager of intruder for device: {}", request.getDeviceId());
 
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(MediaType.APPLICATION_JSON);
-    NotifyIntruderRequestDto requestBody = new NotifyIntruderRequestDto(deviceId);
-    HttpEntity<NotifyIntruderRequestDto> entity = new HttpEntity<>(requestBody, headers);
+    HttpEntity<NotifyIntruderRequestDto> entity = new HttpEntity<>(request, headers);
 
     restTemplate.postForObject(url, entity, Void.class);
   }

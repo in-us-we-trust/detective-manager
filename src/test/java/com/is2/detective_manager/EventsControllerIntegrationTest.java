@@ -2,6 +2,7 @@ package com.is2.detective_manager;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -13,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.is2.detective_manager.client.CloudinaryStorageClient;
 import com.is2.detective_manager.client.MlServiceApiClient;
 import com.is2.detective_manager.client.UsersManagerApiClient;
+import com.is2.detective_manager.model.dto.NotifyIntruderRequestDto;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -76,7 +78,12 @@ public class EventsControllerIntegrationTest {
         .andExpect(jsonPath("$.data.eventType").value("bell"))
         .andExpect(jsonPath("$.data.timestamp").exists());
 
-    verify(usersManagerApiClient, times(1)).notifyIntruder(DEVICE_ID);
+    verify(usersManagerApiClient, times(1))
+      .notifyIntruder(
+        argThat(
+          request ->
+            DEVICE_ID.equals(request.getDeviceId())
+              && MOCK_IMAGE_URL.equals(request.getImageUrl())));
   }
 
   @Test
@@ -100,7 +107,7 @@ public class EventsControllerIntegrationTest {
         .andExpect(jsonPath("$.data.isIntruder").value(false))
         .andExpect(jsonPath("$.data.eventType").value("motion"));
 
-    verify(usersManagerApiClient, never()).notifyIntruder(anyString());
+    verify(usersManagerApiClient, never()).notifyIntruder(any(NotifyIntruderRequestDto.class));
   }
 
   @Test
