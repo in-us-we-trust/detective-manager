@@ -54,7 +54,6 @@ jobs:
             --platform managed \
             --region ${{ env.REGION }} \
             --allow-unauthenticated \
-            --port 8080 \
             --memory 512Mi \
             --cpu 1 \
             --min-instances 0 \
@@ -62,7 +61,6 @@ jobs:
             --concurrency 20 \
             --cpu-throttling \
             --set-env-vars "SPRING_PROFILES_ACTIVE=prod" \
-            --set-env-vars "PORT=8080" \
             --set-env-vars "DB_URL=${{ secrets.DB_URL }}" \
             --set-env-vars "DB_USERNAME=${{ secrets.DB_USERNAME }}" \
             --set-env-vars "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" \
