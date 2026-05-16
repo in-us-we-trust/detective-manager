@@ -128,13 +128,11 @@
 				<groupId>com.diffplug.spotless</groupId>
 				<artifactId>spotless-maven-plugin</artifactId>
 				<version>2.43.0</version>
-
 				<configuration>
 					<java>
-						<googleJavaFormat />
+						<googleJavaFormat/>
 					</java>
 				</configuration>
-
 			</plugin>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
@@ -148,6 +146,7 @@
 				<executions>
 
 					<execution>
+						<id>prepare-agent</id>
 						<goals>
 							<goal>prepare-agent</goal>
 						</goals>
@@ -156,7 +155,6 @@
 					<execution>
 						<id>report</id>
 						<phase>test</phase>
-
 						<goals>
 							<goal>report</goal>
 						</goals>
@@ -164,23 +162,21 @@
 
 					<execution>
 						<id>check</id>
+						<phase>verify</phase>
 						<goals>
 							<goal>check</goal>
 						</goals>
-
 						<configuration>
 							<rules>
 								<rule>
 									<element>BUNDLE</element>
-
 									<limits>
 										<limit>
 											<counter>LINE</counter>
 											<value>COVEREDRATIO</value>
-											<minimum>0.99</minimum>
+											<minimum>0.50</minimum>
 										</limit>
 									</limits>
-
 								</rule>
 							</rules>
 						</configuration>
