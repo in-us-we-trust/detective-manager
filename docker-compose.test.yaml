@@ -3,32 +3,49 @@ version: "3.9"
 services:
   db-test:
     image: postgres:16
-    container_name: postgres-detective-test
+    container_name: detective-manager-db-test
+
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: test_db
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_pass
+      POSTGRES_DB: detective_test_db
       TZ: UTC
+
     ports:
-      - "5430:5432"
+      - "5702:5432"
+
     networks:
-      - test-net
+      - detective-test-net
 
   detective-manager-test:
     build:
       context: .
-      dockerfile: Dockerfile.test
+      dockerfile: Dockerfile
+
     container_name: detective-manager-test
+
     depends_on:
       - db-test
+
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db-test:5432/test_db
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_PROFILES_ACTIVE: test
+
+      DB_URL: jdbc:postgresql://db-test:5432/detective_test_db
+      DB_USERNAME: test_user
+      DB_PASSWORD: test_pass
+
+      ML_SERVICE_BASE_URL: http://mock-ml:8080
+      USERS_MANAGER_BASE_URL: http://mock-users:8080
+
+      CLOUDINARY_CLOUD_NAME: test
+      CLOUDINARY_API_KEY: test
+      CLOUDINARY_API_SECRET: test
+
+    command: mvn test
+
     networks:
-      - test-net
+      - detective-test-net
 
 networks:
-  test-net:
+  detective-test-net:
     driver: bridge
