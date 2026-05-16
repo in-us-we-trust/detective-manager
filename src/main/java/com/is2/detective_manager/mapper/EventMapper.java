@@ -1,5 +1,6 @@
 package com.is2.detective_manager.mapper;
 
+import com.is2.detective_manager.model.dto.EventResponseDto;
 import com.is2.detective_manager.model.dto.NotifyIntruderRequestDto;
 import com.is2.detective_manager.model.dto.ReportEventRequestDto;
 import com.is2.detective_manager.model.dto.ReportEventResponseDto;
@@ -24,4 +25,6 @@ public interface EventMapper {
   ReportEventResponseDto toReportEventResponseDto(Event event);
 
   NotifyIntruderRequestDto toNotifyIntruderRequestDto(String deviceId, String imageUrl);
+
+  EventResponseDto toEventResponseDto(Event event);
 }
