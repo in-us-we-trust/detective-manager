@@ -1,4 +1,4 @@
-name: Java Docker CI
+name: Java Docker CI with Coverage
 
 on:
   pull_request:
@@ -24,23 +24,31 @@ jobs:
           echo "Waiting for PostgreSQL..."
 
           for i in {1..30}; do
-            docker exec detective-manager-db-test pg_isready -U test_user -d detective_test_db && exit 0
+            if docker exec detective-manager-db-test pg_isready -U test_user -d detective_test_db; then
+              echo "PostgreSQL is ready!"
+              exit 0
+            fi
             sleep 2
           done
 
-          echo "DB not ready"
+          echo "PostgreSQL not ready"
           exit 1
 
-      - name: Build test image
+      - name: Build test container
         run: |
           docker compose -f docker-compose.test.yml build detective-manager-test
 
-      - name: Run format + tests + coverage
+      - name: Run Spotless check
         run: |
           docker compose -f docker-compose.test.yml run --rm detective-manager-test \
-          mvn -B spotless:check clean verify jacoco:check
+          mvn -B spotless:check
 
-      - name: Shutdown containers
+      - name: Run tests with coverage
+        run: |
+          docker compose -f docker-compose.test.yml run --rm detective-manager-test \
+          mvn -B clean verify jacoco:check
+
+      - name: Shutdown Docker Compose
         if: always()
         run: |
           docker compose -f docker-compose.test.yml down -v
