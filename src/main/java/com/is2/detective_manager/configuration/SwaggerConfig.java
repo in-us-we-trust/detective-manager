@@ -22,14 +22,10 @@ public class SwaggerConfig {
                     "Microservicio encargado de llevar a cabo la lógica del proceso de detección de intrusos y eventos atípicos."))
         .addSecurityItem(new SecurityRequirement().addList("Bearer Authentication"))
         .components(
-            new Components()
-                .addSecuritySchemes("Bearer Authentication", createAPIKeyScheme()));
+            new Components().addSecuritySchemes("Bearer Authentication", createAPIKeyScheme()));
   }
 
   private SecurityScheme createAPIKeyScheme() {
-    return new SecurityScheme()
-        .type(SecurityScheme.Type.HTTP)
-        .bearerFormat("JWT")
-        .scheme("bearer");
+    return new SecurityScheme().type(SecurityScheme.Type.HTTP).bearerFormat("JWT").scheme("bearer");
   }
 }

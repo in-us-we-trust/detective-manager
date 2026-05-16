@@ -37,7 +37,8 @@ public class EventServiceImpl implements EventService {
 
     UUID deviceUuid = parseDeviceId(deviceId);
 
-    MlAnalysisRequestDto mlRequest = new MlAnalysisRequestDto(request.getImage(), request.getType());
+    MlAnalysisRequestDto mlRequest =
+        new MlAnalysisRequestDto(request.getImage(), request.getType());
     boolean isIntruder = mlServiceApiClient.analyzeIntruder(mlRequest);
     log.info("ML analysis result for device {}: isIntruder={}", deviceId, isIntruder);
 

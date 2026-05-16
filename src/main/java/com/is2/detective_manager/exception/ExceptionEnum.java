@@ -4,9 +4,7 @@ import org.springframework.http.HttpStatus;
 
 public enum ExceptionEnum {
   INVALID_DEVICE_ID(
-      "Invalid device ID",
-      HttpStatus.BAD_REQUEST,
-      "The device_id header must be a valid UUID."),
+      "Invalid device ID", HttpStatus.BAD_REQUEST, "The device_id header must be a valid UUID."),
   ML_SERVICE_ERROR(
       "ML service error",
       HttpStatus.BAD_GATEWAY,

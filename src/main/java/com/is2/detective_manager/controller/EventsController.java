@@ -55,8 +55,7 @@ public class EventsController {
       })
   @PostMapping("/events")
   public ResponseEntity<StandardResponse<ReportEventResponseDto>> reportEvent(
-      @Parameter(description = "Device UUID", required = true)
-          @RequestHeader("device_id")
+      @Parameter(description = "Device UUID", required = true) @RequestHeader("device_id")
           String deviceId,
       @Valid @RequestBody ReportEventRequestDto request) {
     var response = eventService.reportEvent(deviceId, request);

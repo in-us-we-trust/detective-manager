@@ -79,11 +79,11 @@ public class EventsControllerIntegrationTest {
         .andExpect(jsonPath("$.data.timestamp").exists());
 
     verify(usersManagerApiClient, times(1))
-      .notifyIntruder(
-        argThat(
-          request ->
-            DEVICE_ID.equals(request.getDeviceId())
-              && MOCK_IMAGE_URL.equals(request.getImageUrl())));
+        .notifyIntruder(
+            argThat(
+                request ->
+                    DEVICE_ID.equals(request.getDeviceId())
+                        && MOCK_IMAGE_URL.equals(request.getImageUrl())));
   }
 
   @Test

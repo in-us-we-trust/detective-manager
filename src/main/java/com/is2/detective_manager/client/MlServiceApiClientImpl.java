@@ -31,8 +31,6 @@ public class MlServiceApiClientImpl implements MlServiceApiClient {
     MlAnalysisResponseDto response =
         restTemplate.postForObject(url, entity, MlAnalysisResponseDto.class);
 
-    return response != null
-        && response.getData() != null
-        && response.getData().isIntruder();
+    return response != null && response.getData() != null && response.getData().isIntruder();
   }
 }

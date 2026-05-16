@@ -15,8 +15,10 @@ public class ReportEventResponseDto {
   private UUID eventId;
   private UUID deviceId;
   private LocalDateTime timestamp;
+
   @JsonProperty("isIntruder")
   private boolean isIntruder;
+
   private String imageUrl;
   private String eventType;
 }

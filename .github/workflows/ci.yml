@@ -36,9 +36,20 @@ jobs:
         run: |
           docker compose -f docker-compose.test.yml build detective-manager-test
 
-      - name: Run tests
+      - name: Check code formatting
         run: |
-          docker compose -f docker-compose.test.yml run --rm detective-manager-test
+          docker compose -f docker-compose.test.yml run --rm detective-manager-test \
+          mvn spotless:check
+
+      - name: Run tests with coverage
+        run: |
+          docker compose -f docker-compose.test.yml run --rm detective-manager-test \
+          mvn clean verify
+
+      - name: Enforce minimum coverage (50%)
+        run: |
+          docker compose -f docker-compose.test.yml run --rm detective-manager-test \
+          mvn jacoco:check
 
       - name: Shutdown containers
         if: always()

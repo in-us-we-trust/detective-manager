@@ -14,10 +14,14 @@ public class ExceptionContent {
   @Schema(description = "Error title", example = "Bad Request")
   private String title;
 
-  @Schema(description = "Detailed description of the error", example = "The device_id header must be a valid UUID.")
+  @Schema(
+      description = "Detailed description of the error",
+      example = "The device_id header must be a valid UUID.")
   private String detail;
 
-  @Schema(description = "Path where the error occurred", example = "/api/detective-manager/v1/events")
+  @Schema(
+      description = "Path where the error occurred",
+      example = "/api/detective-manager/v1/events")
   private String instance;
 
   @Schema(description = "Error type", example = "about:blank")
