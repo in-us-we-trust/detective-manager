@@ -16,7 +16,8 @@ public enum ExceptionEnum {
   NOTIFICATION_ERROR(
       "Notification error",
       HttpStatus.BAD_GATEWAY,
-      "There was an error sending the intruder notification.");
+      "There was an error sending the intruder notification."),
+  EVENT_NOT_FOUND("Event not found.", HttpStatus.NOT_FOUND, "The requested event does not exist.");
 
   private final String title;
   private final HttpStatus status;

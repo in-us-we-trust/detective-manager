@@ -6,13 +6,12 @@ import com.is2.detective_manager.client.UsersManagerApiClient;
 import com.is2.detective_manager.exception.DetectiveException;
 import com.is2.detective_manager.exception.ExceptionEnum;
 import com.is2.detective_manager.mapper.EventMapper;
-import com.is2.detective_manager.model.dto.MlAnalysisRequestDto;
-import com.is2.detective_manager.model.dto.NotifyIntruderRequestDto;
-import com.is2.detective_manager.model.dto.ReportEventRequestDto;
-import com.is2.detective_manager.model.dto.ReportEventResponseDto;
+import com.is2.detective_manager.model.dto.*;
+import com.is2.detective_manager.model.dto.EventResponseDto;
 import com.is2.detective_manager.model.entity.Event;
 import com.is2.detective_manager.repository.EventRepository;
 import com.is2.detective_manager.service.EventService;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -56,6 +55,43 @@ public class EventServiceImpl implements EventService {
     }
 
     return eventMapper.toReportEventResponseDto(event);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<EventResponseDto> getEventsByDevice(UUID deviceId) {
+    log.info("Fetching events for device: {}", deviceId);
+
+    return eventRepository.findAllByDeviceId(deviceId).stream()
+        .map(eventMapper::toEventResponseDto)
+        .toList();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<EventResponseDto> getEventsByDevices(List<UUID> deviceIds) {
+    log.info("Fetching events for devices: {}", deviceIds);
+
+    if (deviceIds == null || deviceIds.isEmpty()) {
+      return eventRepository.findAll().stream().map(eventMapper::toEventResponseDto).toList();
+    }
+
+    return eventRepository.findAllByDeviceIdIn(deviceIds).stream()
+        .map(eventMapper::toEventResponseDto)
+        .toList();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public EventResponseDto getEvent(UUID eventId) {
+    log.info("Fetching event with ID: {}", eventId);
+
+    Event event =
+        eventRepository
+            .findById(eventId)
+            .orElseThrow(() -> new DetectiveException(ExceptionEnum.EVENT_NOT_FOUND));
+
+    return eventMapper.toEventResponseDto(event);
   }
 
   private UUID parseDeviceId(String deviceId) {

@@ -7,6 +7,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -146,7 +147,7 @@ public class EventsControllerIntegrationTest {
                     """
                         .formatted(VALID_BASE64_IMAGE)))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.title").value("Invalid device ID"));
+        .andExpect(jsonPath("$.title").value("Invalid UUID"));
   }
 
   @Test
@@ -200,6 +201,137 @@ public class EventsControllerIntegrationTest {
                     }
                     """
                         .formatted(VALID_BASE64_IMAGE)))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void getEvent_existingEvent_returnsOk() throws Exception {
+    when(mlServiceApiClient.analyzeIntruder(any())).thenReturn(true);
+
+    String response =
+        mockMvc
+            .perform(
+                post("/api/detective-manager/v1/events")
+                    .contentType("application/json")
+                    .header("device_id", DEVICE_ID)
+                    .content(
+                        """
+                                            {
+                                              "image": "%s",
+                                              "type": "bell"
+                                            }
+                                            """
+                            .formatted(VALID_BASE64_IMAGE)))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    String eventId = com.jayway.jsonpath.JsonPath.read(response, "$.data.eventId");
+
+    mockMvc
+        .perform(get("/api/detective-manager/v1/events/{eventId}", eventId))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.id").value(eventId))
+        .andExpect(jsonPath("$.data.deviceId").value(DEVICE_ID))
+        .andExpect(jsonPath("$.data.intruder").value(true))
+        .andExpect(jsonPath("$.data.imageUrl").value(MOCK_IMAGE_URL))
+        .andExpect(jsonPath("$.data.eventType").value("bell"))
+        .andExpect(jsonPath("$.data.timestamp").exists());
+  }
+
+  @Test
+  void getEvent_nonExistingEvent_returnsNotFound() throws Exception {
+    mockMvc
+        .perform(
+            get(
+                "/api/detective-manager/v1/events/{eventId}",
+                "123e4567-e89b-12d3-a456-426614174999"))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void getEvent_invalidEventId_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(get("/api/detective-manager/v1/events/{eventId}", "invalid-uuid"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void getEvents_withoutFilters_returnsAllEvents() throws Exception {
+    when(mlServiceApiClient.analyzeIntruder(any())).thenReturn(false);
+
+    mockMvc
+        .perform(
+            post("/api/detective-manager/v1/events")
+                .contentType("application/json")
+                .header("device_id", DEVICE_ID)
+                .content(
+                    """
+                                    {
+                                      "image": "%s",
+                                      "type": "motion"
+                                    }
+                                    """
+                        .formatted(VALID_BASE64_IMAGE)))
+        .andExpect(status().isCreated());
+
+    mockMvc
+        .perform(get("/api/detective-manager/v1/events"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.length()").value(1))
+        .andExpect(jsonPath("$.data[0].deviceId").value(DEVICE_ID))
+        .andExpect(jsonPath("$.data[0].eventType").value("motion"));
+  }
+
+  @Test
+  void getEvents_filterByDeviceIds_returnsFilteredEvents() throws Exception {
+    String secondDeviceId = "223e4567-e89b-12d3-a456-426614174000";
+
+    when(mlServiceApiClient.analyzeIntruder(any())).thenReturn(false);
+
+    mockMvc
+        .perform(
+            post("/api/detective-manager/v1/events")
+                .contentType("application/json")
+                .header("device_id", DEVICE_ID)
+                .content(
+                    """
+                                    {
+                                      "image": "%s",
+                                      "type": "motion"
+                                    }
+                                    """
+                        .formatted(VALID_BASE64_IMAGE)))
+        .andExpect(status().isCreated());
+
+    mockMvc
+        .perform(
+            post("/api/detective-manager/v1/events")
+                .contentType("application/json")
+                .header("device_id", secondDeviceId)
+                .content(
+                    """
+                                    {
+                                      "image": "%s",
+                                      "type": "bell"
+                                    }
+                                    """
+                        .formatted(VALID_BASE64_IMAGE)))
+        .andExpect(status().isCreated());
+
+    mockMvc
+        .perform(get("/api/detective-manager/v1/events").param("deviceIds", DEVICE_ID))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.length()").value(1))
+        .andExpect(jsonPath("$.data[0].deviceId").value(DEVICE_ID))
+        .andExpect(jsonPath("$.data[0].eventType").value("motion"));
+  }
+
+  @Test
+  void getEvents_invalidDeviceIds_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(get("/api/detective-manager/v1/events").param("deviceIds", "invalid-uuid"))
         .andExpect(status().isBadRequest());
   }
 }
