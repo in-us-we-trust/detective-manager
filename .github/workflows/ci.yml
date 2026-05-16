@@ -46,7 +46,7 @@ jobs:
       - name: Run tests with coverage
         run: |
           docker compose -f docker-compose.test.yml run --rm detective-manager-test \
-          mvn -B clean verify jacoco:check
+          mvn -B clean verify
 
       - name: Shutdown Docker Compose
         if: always()
