@@ -1,0 +1,54 @@
+services:
+  db:
+    image: postgres:16
+    container_name: detective-manager-db-local
+    environment:
+      POSTGRES_DB: detective_db
+      POSTGRES_USER: detective
+      POSTGRES_PASSWORD: detective123
+    ports:
+      - "5432:5432"
+    volumes:
+      - detective-manager-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U detective -d detective_db"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  ml-service:
+    build:
+      context: ../ml-service
+      dockerfile: Dockerfile
+    container_name: ml-service-local
+    environment:
+      PORT: 8000
+      DETECTIVE_MANAGER_BASE_URL: http://detective-manager:8080
+    ports:
+      - "8000:8000"
+
+  detective-manager:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: detective-manager-local
+    depends_on:
+      db:
+        condition: service_healthy
+      ml-service:
+        condition: service_started
+    environment:
+      PORT: 8080
+      DB_URL: jdbc:postgresql://db:5432/detective_db
+      DB_USERNAME: detective
+      DB_PASSWORD: detective123
+      ML_SERVICE_BASE_URL: http://ml-service:8000
+      USERS_MANAGER_BASE_URL: http://localhost:9999
+      CLOUDINARY_CLOUD_NAME: local
+      CLOUDINARY_API_KEY: local
+      CLOUDINARY_API_SECRET: local
+    ports:
+      - "8087:8080"
+
+volumes:
+  detective-manager-db-data:

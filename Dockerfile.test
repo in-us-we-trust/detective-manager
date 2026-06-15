@@ -7,4 +7,4 @@ COPY src ./src
 
 RUN mvn -B -DskipTests dependency:go-offline
 
-CMD ["mvn", "-B", "clean", "verify"]
+CMD ["mvn", "-B", "spotless:check", "clean", "verify"]

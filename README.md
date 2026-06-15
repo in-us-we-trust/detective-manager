@@ -15,6 +15,8 @@ Microservicio encargado de gestionar la detección de intrusos y eventos atípic
 | Método | Path | Descripción |
 |--------|------|-------------|
 | `POST` | `/api/detective-manager/v1/events` | Reportar un evento de seguridad |
+| `POST` | `/api/detective-manager/v1/devices/{deviceId}/face-embeddings` | Registrar el rostro conocido de una persona |
+| `GET` | `/api/detective-manager/v1/devices/{deviceId}/persons/{personId}/face-embeddings` | Obtener todos los embeddings de una persona |
 
 ### Request
 
@@ -49,6 +51,104 @@ Microservicio encargado de gestionar la detección de intrusos y eventos atípic
 |--------|-------|
 | `400` | `device_id` ausente o inválido, body inválido o campo desconocido |
 | `502` | Error al comunicarse con el servicio de ML o de notificaciones |
+
+## Registro de rostros conocidos
+
+DeepFace debe ejecutarse en `ml-service`, donde ya vive la lógica Python de visión
+artificial. `detective-manager` se limita a orquestar la solicitud y persistir el
+embedding; no ejecuta Python dentro de la JVM.
+
+### Request
+
+`POST /api/detective-manager/v1/devices/{deviceId}/face-embeddings`
+
+```json
+{
+  "personName": "Mateo",
+  "image": "<base64>"
+}
+```
+
+### Response `201 Created`
+
+```json
+{
+  "data": {
+    "id": 1,
+    "deviceId": "uuid",
+    "personId": 1,
+    "personName": "Mateo",
+    "embedding": [0.012, -0.034],
+    "modelName": "ArcFace",
+    "detectorBackend": "retinaface",
+    "dimensions": 512,
+    "createdAt": "2026-06-12T12:00:00"
+  }
+}
+```
+
+El servicio busca una persona con ese nombre dentro del dispositivo. Si no
+existe, la crea automáticamente en `persons` con un ID numérico autoincremental.
+La comparación del nombre ignora mayúsculas, minúsculas y espacios en los
+extremos.
+
+El vector se almacena como `jsonb` en `face_embeddings`; la imagen original no
+se persiste. Cada llamada crea un embedding nuevo, por lo que una misma persona
+y modelo puede tener múltiples vectores.
+
+### Obtener los embeddings de una persona
+
+```http
+GET /api/detective-manager/v1/devices/{deviceId}/persons/{personId}/face-embeddings
+```
+
+La respuesta contiene todos los vectores registrados para esa persona dentro
+del dispositivo, ordenados por `createdAt`:
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "deviceId": "uuid",
+      "personId": 1,
+      "personName": "Mateo",
+      "embedding": [0.012, -0.034],
+      "modelName": "ArcFace",
+      "detectorBackend": "retinaface",
+      "dimensions": 512,
+      "createdAt": "2026-06-12T12:00:00"
+    }
+  ]
+}
+```
+
+### Contrato requerido en `ml-service`
+
+`detective-manager` llama a:
+
+```http
+POST /api/ml-service/v1/analysis/face-embedding
+Content-Type: application/json
+```
+
+```json
+{
+  "image": "<base64>"
+}
+```
+
+Y espera:
+
+```json
+{
+  "data": {
+    "embedding": [0.012, -0.034],
+    "model_name": "ArcFace",
+    "detector_backend": "retinaface"
+  }
+}
+```
 
 ## Variables de entorno
 
@@ -101,14 +201,21 @@ http://localhost:8087/docs
 
 ## Tests
 
-```bash
-mvn test
-```
-
-Los tests de integración utilizan una base de datos PostgreSQL en `localhost:5430`. Levantar con:
+Toda la suite puede ejecutarse dentro de Docker. El comando construye el
+runner Java, levanta PostgreSQL, espera a que la base esté disponible, ejecuta
+Spotless y los tests con cobertura, y elimina los contenedores al terminar:
 
 ```bash
-docker compose -f docker-compose.test.yaml up -d
+./scripts/test-docker.sh
 ```
+
+La salida se divide en preparación, ejecución y limpieza. Muestra las clases
+de test detectadas, el resultado de cada clase, el total y el estado de la
+cobertura. Los logs internos de Maven, Spring, Hibernate y Docker se ocultan
+durante una ejecución exitosa. Si algo falla, se muestra el error relevante y
+se conserva el log técnico completo en la ruta temporal indicada.
+
+No hace falta tener Java, Maven ni PostgreSQL instalados localmente; solamente
+Docker con Compose.
 
 Los clientes externos (`MlServiceApiClient`, `UsersManagerApiClient`, `CloudinaryStorageClient`) son mockeados en los tests.

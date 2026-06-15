@@ -22,8 +22,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
@@ -34,9 +34,9 @@ public class EventsControllerIntegrationTest {
   @Autowired private MockMvc mockMvc;
   @Autowired private DbTestUtils dbUtils;
 
-  @MockBean private MlServiceApiClient mlServiceApiClient;
-  @MockBean private UsersManagerApiClient usersManagerApiClient;
-  @MockBean private CloudinaryStorageClient cloudinaryStorageClient;
+  @MockitoBean private MlServiceApiClient mlServiceApiClient;
+  @MockitoBean private UsersManagerApiClient usersManagerApiClient;
+  @MockitoBean private CloudinaryStorageClient cloudinaryStorageClient;
 
   private static final String DEVICE_ID = "123e4567-e89b-12d3-a456-426614174000";
   private static final String MOCK_IMAGE_URL =

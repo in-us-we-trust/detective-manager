@@ -19,6 +19,7 @@ public class DbTestUtils {
   }
 
   public void clearTables() {
-    jdbcTemplate.execute("TRUNCATE TABLE events CASCADE");
+    jdbcTemplate.execute(
+        "TRUNCATE TABLE face_embeddings, persons, events RESTART IDENTITY CASCADE");
   }
 }

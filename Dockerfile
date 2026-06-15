@@ -1,11 +1,9 @@
 # =======================
 # Stage 1: Build
 # =======================
-FROM eclipse-temurin:17-jdk-alpine AS build
+FROM maven:3.9.9-eclipse-temurin-17 AS build
 
 WORKDIR /app
-
-RUN apk add --no-cache maven bash git
 
 COPY pom.xml .
 RUN mvn dependency:go-offline -B
@@ -18,7 +16,7 @@ RUN mvn clean package -DskipTests && \
 # =======================
 # Stage 2: Runtime
 # =======================
-FROM eclipse-temurin:17-jre-alpine AS runtime
+FROM eclipse-temurin:17-jre-jammy AS runtime
 
 WORKDIR /app
 
