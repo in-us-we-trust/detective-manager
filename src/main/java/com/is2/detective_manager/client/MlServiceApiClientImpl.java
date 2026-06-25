@@ -2,11 +2,14 @@ package com.is2.detective_manager.client;
 
 import com.is2.detective_manager.exception.DetectiveException;
 import com.is2.detective_manager.exception.ExceptionEnum;
+import com.is2.detective_manager.model.dto.FaceRecognitionResultDto;
 import com.is2.detective_manager.model.dto.GeneratedFaceEmbeddingDto;
 import com.is2.detective_manager.model.dto.MlAnalysisRequestDto;
 import com.is2.detective_manager.model.dto.MlAnalysisResponseDto;
 import com.is2.detective_manager.model.dto.MlFaceEmbeddingRequestDto;
 import com.is2.detective_manager.model.dto.MlFaceEmbeddingResponseDto;
+import com.is2.detective_manager.model.dto.MlFaceRecognitionRequestDto;
+import com.is2.detective_manager.model.dto.MlFaceRecognitionResponseDto;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -65,5 +68,31 @@ public class MlServiceApiClientImpl implements MlServiceApiClient {
         response.getData().getEmbedding(),
         response.getData().getModelName(),
         response.getData().getDetectorBackend());
+  }
+
+  @Override
+  public FaceRecognitionResultDto recognizeFace(MlFaceRecognitionRequestDto request) {
+    String url = baseUrl + "/api/ml-service/v1/analysis/face-recognition";
+    log.info("Requesting face recognition from ML service at: {}", url);
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    HttpEntity<MlFaceRecognitionRequestDto> entity = new HttpEntity<>(request, headers);
+
+    MlFaceRecognitionResponseDto response;
+    try {
+      response = restTemplate.postForObject(url, entity, MlFaceRecognitionResponseDto.class);
+    } catch (RestClientException exception) {
+      log.error("Failed to recognize face through ML service", exception);
+      throw new DetectiveException(ExceptionEnum.ML_SERVICE_ERROR);
+    }
+
+    if (response == null || response.getData() == null || response.getData().getKnown() == null) {
+      throw new DetectiveException(
+          ExceptionEnum.ML_SERVICE_ERROR,
+          "The ML service returned an invalid face recognition response.");
+    }
+
+    return response.getData();
   }
 }

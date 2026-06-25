@@ -9,6 +9,5 @@ public class ReportEventRequestDto {
   @NotBlank(message = "image is required")
   private String image;
 
-  @NotBlank(message = "type is required")
   private String type;
 }

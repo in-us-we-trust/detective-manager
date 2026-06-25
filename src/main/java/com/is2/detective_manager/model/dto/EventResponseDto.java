@@ -20,4 +20,6 @@ public class EventResponseDto {
   private String imageUrl;
 
   private String eventType;
+
+  private FaceRecognitionResultDto faceRecognition;
 }

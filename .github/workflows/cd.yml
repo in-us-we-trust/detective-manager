@@ -65,7 +65,8 @@ jobs:
             --set-env-vars "DB_USERNAME=${{ secrets.DB_USERNAME }}" \
             --set-env-vars "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" \
             --set-env-vars "ML_SERVICE_BASE_URL=${{ secrets.ML_SERVICE_BASE_URL }}" \
-            --set-env-vars "USERS_MANAGER_BASE_URL=${{ secrets.USERS_MANAGER_BASE_URL }}" \
             --set-env-vars "CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}" \
             --set-env-vars "CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}" \
-            --set-env-vars "CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}"
+            --set-env-vars "CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}" \
+            --set-env-vars "RABBIT_URL=${{ secrets.RABBIT_URL }}" \
+            --set-env-vars "RABBIT_QUEUE=${{ secrets.RABBIT_QUEUE }}"

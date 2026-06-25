@@ -43,10 +43,12 @@ services:
       DB_USERNAME: detective
       DB_PASSWORD: detective123
       ML_SERVICE_BASE_URL: http://ml-service:8000
-      USERS_MANAGER_BASE_URL: http://localhost:9999
-      CLOUDINARY_CLOUD_NAME: local
-      CLOUDINARY_API_KEY: local
-      CLOUDINARY_API_SECRET: local
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-local}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-local}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-local}
+      RABBIT_URL: ${RABBIT_URL:-amqp://guest:guest@host.docker.internal:5672/}
+      RABBIT_QUEUE: ${RABBIT_QUEUE:-doorbell-notifications}
+      RABBITMQ_NOTIFICATIONS_EXCHANGE: ${RABBITMQ_NOTIFICATIONS_EXCHANGE:-}
     ports:
       - "8087:8080"
 

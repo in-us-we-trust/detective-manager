@@ -28,4 +28,31 @@ public class Event {
 
   @Column(name = "event_type", nullable = false)
   private String eventType;
+
+  @Column(name = "face_known")
+  private Boolean faceKnown;
+
+  @Column(name = "face_threshold")
+  private Double faceThreshold;
+
+  @Column(name = "face_distance")
+  private Double faceDistance;
+
+  @Column(name = "face_distance_metric")
+  private String faceDistanceMetric;
+
+  @Column(name = "closest_embedding_id")
+  private Long closestEmbeddingId;
+
+  @Column(name = "closest_person_id")
+  private Long closestPersonId;
+
+  @Column(name = "closest_person_name")
+  private String closestPersonName;
+
+  @Column(name = "face_model_name")
+  private String faceModelName;
+
+  @Column(name = "face_detector_backend")
+  private String faceDetectorBackend;
 }

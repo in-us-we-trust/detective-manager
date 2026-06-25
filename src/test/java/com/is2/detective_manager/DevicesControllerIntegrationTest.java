@@ -3,6 +3,7 @@ package com.is2.detective_manager;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -12,7 +13,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.is2.detective_manager.client.CloudinaryStorageClient;
 import com.is2.detective_manager.client.MlServiceApiClient;
-import com.is2.detective_manager.client.UsersManagerApiClient;
+import com.is2.detective_manager.client.NotificationPublisher;
+import com.is2.detective_manager.model.dto.FaceRecognitionClosestMatchDto;
+import com.is2.detective_manager.model.dto.FaceRecognitionResultDto;
 import com.is2.detective_manager.model.dto.GeneratedFaceEmbeddingDto;
 import com.is2.detective_manager.repository.FaceEmbeddingRepository;
 import com.is2.detective_manager.repository.PersonRepository;
@@ -42,7 +45,7 @@ public class DevicesControllerIntegrationTest {
 
   @MockitoBean private MlServiceApiClient mlServiceApiClient;
 
-  @MockitoBean private UsersManagerApiClient usersManagerApiClient;
+  @MockitoBean private NotificationPublisher notificationPublisher;
 
   @MockitoBean private CloudinaryStorageClient cloudinaryStorageClient;
 
@@ -185,6 +188,84 @@ public class DevicesControllerIntegrationTest {
   }
 
   @Test
+  void reportEvent_callsFaceRecognitionWithKnownDeviceEmbeddings() throws Exception {
+    when(mlServiceApiClient.generateFaceEmbedding(any()))
+        .thenReturn(
+            new GeneratedFaceEmbeddingDto(List.of(0.1, 0.2), "ArcFace", "retinaface"),
+            new GeneratedFaceEmbeddingDto(List.of(0.3, 0.4), "ArcFace", "retinaface"),
+            new GeneratedFaceEmbeddingDto(List.of(0.9, 1.0), "ArcFace", "retinaface"));
+    when(mlServiceApiClient.recognizeFace(any()))
+        .thenReturn(
+            FaceRecognitionResultDto.builder()
+                .known(false)
+                .threshold(0.4)
+                .distance(0.61)
+                .distanceMetric("cosine")
+                .closestMatch(
+                    FaceRecognitionClosestMatchDto.builder()
+                        .embeddingId(1L)
+                        .personId(1L)
+                        .personName("Mateo")
+                        .build())
+                .modelName("ArcFace")
+                .detectorBackend("retinaface")
+                .build());
+
+    createFaceEmbedding(DEVICE_ID, "Mateo");
+    createFaceEmbedding(DEVICE_ID, "Another person");
+    createFaceEmbedding(SECOND_DEVICE_ID, "Other device person");
+
+    mockMvc
+        .perform(
+            post("/api/detective-manager/v1/devices/{deviceId}/events", DEVICE_ID)
+                .contentType("application/json")
+                .content(
+                    """
+                    {
+                      "image": "%s"
+                    }
+                    """
+                        .formatted(VALID_BASE64_IMAGE)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.data.isIntruder").value(true))
+        .andExpect(jsonPath("$.data.eventType").value("INTRUDER"))
+        .andExpect(jsonPath("$.data.faceRecognition.known").value(false))
+        .andExpect(jsonPath("$.data.faceRecognition.threshold").value(0.4))
+        .andExpect(jsonPath("$.data.faceRecognition.distance").value(0.61))
+        .andExpect(jsonPath("$.data.faceRecognition.distance_metric").value("cosine"))
+        .andExpect(jsonPath("$.data.faceRecognition.closest_match.person_name").value("Mateo"))
+        .andExpect(jsonPath("$.data.faceRecognition.model_name").value("ArcFace"))
+        .andExpect(jsonPath("$.data.faceRecognition.detector_backend").value("retinaface"));
+
+    verify(mlServiceApiClient, never()).analyzeIntruder(any());
+    verify(mlServiceApiClient)
+        .recognizeFace(
+            org.mockito.ArgumentMatchers.argThat(
+                request ->
+                    VALID_BASE64_IMAGE.equals(request.getImage())
+                        && request.getEmbeddings().size() == 2
+                        && request.getEmbeddings().stream()
+                            .allMatch(
+                                embedding -> DEVICE_ID.equals(embedding.getDeviceId().toString()))
+                        && request.getEmbeddings().stream()
+                            .noneMatch(
+                                embedding ->
+                                    embedding.getPersonName().equals("Other device person"))));
+    verify(notificationPublisher)
+        .publishIntruderDetected(
+            org.mockito.ArgumentMatchers.argThat(
+                message ->
+                    DEVICE_ID.equals(message.getDeviceId().toString())
+                        && MOCK_IMAGE_URL.equals(message.getImageUrl())
+                        && "high".equals(message.getSeverity())
+                        && "Intruder detected".equals(message.getTitle())
+                        && "An unknown person was detected.".equals(message.getMessage())
+                        && message.getTime() != null
+                        && message.getTime().endsWith("Z")
+                        && message.getTags().contains("doorbell")));
+  }
+
+  @Test
   void getDeviceFaceEmbeddings_returnsAllEmbeddingsOnlyForRequestedDevice() throws Exception {
     when(mlServiceApiClient.generateFaceEmbedding(any()))
         .thenReturn(
@@ -254,7 +335,8 @@ public class DevicesControllerIntegrationTest {
   }
 
   private void createEvent(String deviceId, String eventType) throws Exception {
-    when(mlServiceApiClient.analyzeIntruder(any())).thenReturn(false);
+    when(mlServiceApiClient.recognizeFace(any()))
+        .thenReturn(FaceRecognitionResultDto.builder().known(true).build());
 
     mockMvc
         .perform(

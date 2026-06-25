@@ -158,10 +158,11 @@ Y espera:
 | `DB_USERNAME` | Usuario de la base de datos | — |
 | `DB_PASSWORD` | Contraseña de la base de datos | — |
 | `ML_SERVICE_BASE_URL` | URL base del servicio de ML | — |
-| `USERS_MANAGER_BASE_URL` | URL base del servicio de usuarios | — |
 | `CLOUDINARY_CLOUD_NAME` | Nombre del cloud en Cloudinary | — |
 | `CLOUDINARY_API_KEY` | API key de Cloudinary | — |
 | `CLOUDINARY_API_SECRET` | API secret de Cloudinary | — |
+| `RABBIT_URL` | URL AMQP/AMQPS de RabbitMQ | `amqp://guest:guest@localhost:5672/` |
+| `RABBIT_QUEUE` | Cola/routing key donde publicar notificaciones | `doorbell-notifications` |
 | `PORT` | Puerto del servidor | `8087` |
 | `SPRING_PROFILES_ACTIVE` | Perfil activo de Spring | `local` |
 
@@ -174,10 +175,11 @@ spring.datasource.url=jdbc:postgresql://localhost:5432/detective_db
 spring.datasource.username=postgres
 spring.datasource.password=postgres
 ml.service.base-url=http://localhost:8081
-users-manager.base-url=http://localhost:8081
 cloudinary.cloud-name=...
 cloudinary.api-key=...
 cloudinary.api-secret=...
+spring.rabbitmq.addresses=amqp://guest:guest@localhost:5672/
+rabbitmq.notifications.routing-key=doorbell-notifications
 ```
 
 ## Ejecución
@@ -218,4 +220,4 @@ se conserva el log técnico completo en la ruta temporal indicada.
 No hace falta tener Java, Maven ni PostgreSQL instalados localmente; solamente
 Docker con Compose.
 
-Los clientes externos (`MlServiceApiClient`, `UsersManagerApiClient`, `CloudinaryStorageClient`) son mockeados en los tests.
+Los clientes externos (`MlServiceApiClient`, `NotificationPublisher`, `CloudinaryStorageClient`) son mockeados en los tests.

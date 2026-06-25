@@ -2,15 +2,24 @@ package com.is2.detective_manager.service.impl;
 
 import com.is2.detective_manager.client.CloudinaryStorageClient;
 import com.is2.detective_manager.client.MlServiceApiClient;
-import com.is2.detective_manager.client.UsersManagerApiClient;
+import com.is2.detective_manager.client.NotificationPublisher;
 import com.is2.detective_manager.exception.DetectiveException;
 import com.is2.detective_manager.exception.ExceptionEnum;
 import com.is2.detective_manager.mapper.EventMapper;
-import com.is2.detective_manager.model.dto.*;
+import com.is2.detective_manager.mapper.FaceEmbeddingMapper;
 import com.is2.detective_manager.model.dto.EventResponseDto;
+import com.is2.detective_manager.model.dto.FaceEmbeddingResponseDto;
+import com.is2.detective_manager.model.dto.FaceRecognitionResultDto;
+import com.is2.detective_manager.model.dto.IntruderNotificationMessageDto;
+import com.is2.detective_manager.model.dto.MlFaceRecognitionRequestDto;
+import com.is2.detective_manager.model.dto.ReportEventRequestDto;
+import com.is2.detective_manager.model.dto.ReportEventResponseDto;
 import com.is2.detective_manager.model.entity.Event;
 import com.is2.detective_manager.repository.EventRepository;
+import com.is2.detective_manager.repository.FaceEmbeddingRepository;
 import com.is2.detective_manager.service.EventService;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -24,10 +33,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class EventServiceImpl implements EventService {
 
   private final MlServiceApiClient mlServiceApiClient;
-  private final UsersManagerApiClient usersManagerApiClient;
+  private final NotificationPublisher notificationPublisher;
   private final CloudinaryStorageClient cloudinaryStorageClient;
   private final EventRepository eventRepository;
+  private final FaceEmbeddingRepository faceEmbeddingRepository;
   private final EventMapper eventMapper;
+  private final FaceEmbeddingMapper faceEmbeddingMapper;
 
   @Override
   @Transactional
@@ -36,22 +47,19 @@ public class EventServiceImpl implements EventService {
 
     UUID deviceUuid = parseDeviceId(deviceId);
 
-    MlAnalysisRequestDto mlRequest =
-        new MlAnalysisRequestDto(request.getImage(), request.getType());
-    boolean isIntruder = mlServiceApiClient.analyzeIntruder(mlRequest);
+    FaceRecognitionResultDto faceRecognition = recognizeFace(deviceUuid, request.getImage());
+    boolean isIntruder = !Boolean.TRUE.equals(faceRecognition.getKnown());
     log.info("ML analysis result for device {}: isIntruder={}", deviceId, isIntruder);
 
     String imageUrl = cloudinaryStorageClient.uploadEventImage(request.getImage(), deviceUuid);
 
-    Event event = eventMapper.toEvent(deviceUuid, isIntruder, imageUrl, request);
+    Event event = eventMapper.toEvent(deviceUuid, isIntruder, imageUrl, request, faceRecognition);
     event = eventRepository.save(event);
     log.info("Event saved with ID: {}", event.getId());
 
     if (isIntruder) {
-      log.info("Intruder detected for device: {}, sending notification", deviceId);
-      NotifyIntruderRequestDto notifyRequest =
-          eventMapper.toNotifyIntruderRequestDto(deviceId, imageUrl);
-      usersManagerApiClient.notifyIntruder(notifyRequest);
+      log.info("Intruder detected for device: {}, publishing notification", deviceId);
+      notificationPublisher.publishIntruderDetected(buildIntruderNotificationMessage(event));
     }
 
     return eventMapper.toReportEventResponseDto(event);
@@ -100,5 +108,26 @@ public class EventServiceImpl implements EventService {
     } catch (IllegalArgumentException e) {
       throw new DetectiveException(ExceptionEnum.INVALID_DEVICE_ID);
     }
+  }
+
+  private FaceRecognitionResultDto recognizeFace(UUID deviceId, String image) {
+    List<FaceEmbeddingResponseDto> embeddings =
+        faceEmbeddingRepository.findAllByPerson_DeviceIdOrderByCreatedAtAscIdAsc(deviceId).stream()
+            .map(faceEmbeddingMapper::toResponseDto)
+            .toList();
+
+    return mlServiceApiClient.recognizeFace(new MlFaceRecognitionRequestDto(image, embeddings));
+  }
+
+  private IntruderNotificationMessageDto buildIntruderNotificationMessage(Event event) {
+    return IntruderNotificationMessageDto.builder()
+        .severity("high")
+        .tags(List.of("intruder", "doorbell"))
+        .deviceId(event.getDeviceId())
+        .time(event.getTimestamp().atOffset(ZoneOffset.UTC).format(DateTimeFormatter.ISO_INSTANT))
+        .title("Intruder detected")
+        .message("An unknown person was detected.")
+        .imageUrl(event.getImageUrl())
+        .build();
   }
 }

@@ -1,5 +1,6 @@
 package com.is2.detective_manager.model.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -18,5 +19,7 @@ public class FaceEmbeddingResponseDto {
   private String modelName;
   private String detectorBackend;
   private int dimensions;
+
+  @JsonFormat(shape = JsonFormat.Shape.STRING)
   private LocalDateTime createdAt;
 }

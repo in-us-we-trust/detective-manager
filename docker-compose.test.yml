@@ -38,7 +38,6 @@ services:
       DB_PASSWORD: test_pass
 
       ML_SERVICE_BASE_URL: http://mock-ml:8080
-      USERS_MANAGER_BASE_URL: http://mock-users:8080
 
       CLOUDINARY_CLOUD_NAME: test
       CLOUDINARY_API_KEY: test

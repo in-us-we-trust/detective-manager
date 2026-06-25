@@ -14,8 +14,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.is2.detective_manager.client.CloudinaryStorageClient;
 import com.is2.detective_manager.client.MlServiceApiClient;
-import com.is2.detective_manager.client.UsersManagerApiClient;
-import com.is2.detective_manager.model.dto.NotifyIntruderRequestDto;
+import com.is2.detective_manager.client.NotificationPublisher;
+import com.is2.detective_manager.model.dto.FaceRecognitionResultDto;
+import com.is2.detective_manager.model.dto.IntruderNotificationMessageDto;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,7 +36,7 @@ public class EventsControllerIntegrationTest {
   @Autowired private DbTestUtils dbUtils;
 
   @MockitoBean private MlServiceApiClient mlServiceApiClient;
-  @MockitoBean private UsersManagerApiClient usersManagerApiClient;
+  @MockitoBean private NotificationPublisher notificationPublisher;
   @MockitoBean private CloudinaryStorageClient cloudinaryStorageClient;
 
   private static final String DEVICE_ID = "123e4567-e89b-12d3-a456-426614174000";
@@ -55,8 +56,9 @@ public class EventsControllerIntegrationTest {
   }
 
   @Test
-  void reportEvent_intruderDetected_returnsCreatedAndNotifiesUsersManager() throws Exception {
-    when(mlServiceApiClient.analyzeIntruder(any())).thenReturn(true);
+  void reportEvent_intruderDetected_returnsCreatedAndPublishesNotification() throws Exception {
+    when(mlServiceApiClient.recognizeFace(any()))
+        .thenReturn(FaceRecognitionResultDto.builder().known(false).build());
 
     mockMvc
         .perform(
@@ -79,17 +81,23 @@ public class EventsControllerIntegrationTest {
         .andExpect(jsonPath("$.data.eventType").value("bell"))
         .andExpect(jsonPath("$.data.timestamp").exists());
 
-    verify(usersManagerApiClient, times(1))
-        .notifyIntruder(
+    verify(notificationPublisher, times(1))
+        .publishIntruderDetected(
             argThat(
-                request ->
-                    DEVICE_ID.equals(request.getDeviceId())
-                        && MOCK_IMAGE_URL.equals(request.getImageUrl())));
+                message ->
+                    DEVICE_ID.equals(message.getDeviceId().toString())
+                        && MOCK_IMAGE_URL.equals(message.getImageUrl())
+                        && "Intruder detected".equals(message.getTitle())
+                        && "An unknown person was detected.".equals(message.getMessage())
+                        && message.getTime() != null
+                        && message.getTime().endsWith("Z")
+                        && message.getTags().contains("intruder")));
   }
 
   @Test
   void reportEvent_noIntruderDetected_returnsCreatedAndDoesNotNotify() throws Exception {
-    when(mlServiceApiClient.analyzeIntruder(any())).thenReturn(false);
+    when(mlServiceApiClient.recognizeFace(any()))
+        .thenReturn(FaceRecognitionResultDto.builder().known(true).build());
 
     mockMvc
         .perform(
@@ -108,7 +116,8 @@ public class EventsControllerIntegrationTest {
         .andExpect(jsonPath("$.data.isIntruder").value(false))
         .andExpect(jsonPath("$.data.eventType").value("motion"));
 
-    verify(usersManagerApiClient, never()).notifyIntruder(any(NotifyIntruderRequestDto.class));
+    verify(notificationPublisher, never())
+        .publishIntruderDetected(any(IntruderNotificationMessageDto.class));
   }
 
   @Test
@@ -131,7 +140,8 @@ public class EventsControllerIntegrationTest {
 
   @Test
   void reportEvent_invalidDeviceIdFormat_returnsBadRequest() throws Exception {
-    when(mlServiceApiClient.analyzeIntruder(any())).thenReturn(false);
+    when(mlServiceApiClient.recognizeFace(any()))
+        .thenReturn(FaceRecognitionResultDto.builder().known(true).build());
 
     mockMvc
         .perform(
@@ -168,7 +178,10 @@ public class EventsControllerIntegrationTest {
   }
 
   @Test
-  void reportEvent_missingType_returnsBadRequest() throws Exception {
+  void reportEvent_missingType_returnsCreatedWithDefaultEventType() throws Exception {
+    when(mlServiceApiClient.recognizeFace(any()))
+        .thenReturn(FaceRecognitionResultDto.builder().known(true).build());
+
     mockMvc
         .perform(
             post("/api/detective-manager/v1/events")
@@ -181,8 +194,9 @@ public class EventsControllerIntegrationTest {
                     }
                     """
                         .formatted(VALID_BASE64_IMAGE)))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.title").value("Bad Request"));
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.data.isIntruder").value(false))
+        .andExpect(jsonPath("$.data.eventType").value("INTRUDER"));
   }
 
   @Test
@@ -206,7 +220,8 @@ public class EventsControllerIntegrationTest {
 
   @Test
   void getEvent_existingEvent_returnsOk() throws Exception {
-    when(mlServiceApiClient.analyzeIntruder(any())).thenReturn(true);
+    when(mlServiceApiClient.recognizeFace(any()))
+        .thenReturn(FaceRecognitionResultDto.builder().known(false).build());
 
     String response =
         mockMvc
@@ -259,7 +274,8 @@ public class EventsControllerIntegrationTest {
 
   @Test
   void getEvents_withoutFilters_returnsAllEvents() throws Exception {
-    when(mlServiceApiClient.analyzeIntruder(any())).thenReturn(false);
+    when(mlServiceApiClient.recognizeFace(any()))
+        .thenReturn(FaceRecognitionResultDto.builder().known(true).build());
 
     mockMvc
         .perform(
@@ -288,7 +304,8 @@ public class EventsControllerIntegrationTest {
   void getEvents_filterByDeviceIds_returnsFilteredEvents() throws Exception {
     String secondDeviceId = "223e4567-e89b-12d3-a456-426614174000";
 
-    when(mlServiceApiClient.analyzeIntruder(any())).thenReturn(false);
+    when(mlServiceApiClient.recognizeFace(any()))
+        .thenReturn(FaceRecognitionResultDto.builder().known(true).build());
 
     mockMvc
         .perform(

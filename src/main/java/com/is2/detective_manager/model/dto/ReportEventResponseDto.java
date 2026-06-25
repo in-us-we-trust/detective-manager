@@ -21,4 +21,5 @@ public class ReportEventResponseDto {
 
   private String imageUrl;
   private String eventType;
+  private FaceRecognitionResultDto faceRecognition;
 }
