@@ -10,14 +10,12 @@ import lombok.Data;
 @Data
 public class Device {
 
-  @Id
-  private UUID id;
+  @Id private UUID id;
 
   @Column(name = "serial_number", nullable = false)
   private String serialNumber;
 
-  @Column
-  private String city;
+  @Column private String city;
 
   @Column(name = "last_seen", nullable = false)
   private Instant lastSeen;
@@ -35,8 +33,7 @@ public class Device {
   @Column(name = "detection_threshold", nullable = false)
   private Integer detectionThreshold;
 
-  @Column
-  private String location;
+  @Column private String location;
 
   @Column(name = "firmware_version")
   private String firmwareVersion;

@@ -25,9 +25,7 @@ public class CreateDeviceRequestDto {
       requiredMode = Schema.RequiredMode.REQUIRED)
   private String serialNumber;
 
-  @Schema(
-      description = "City where the device is installed.",
-      example = "San Miguel")
+  @Schema(description = "City where the device is installed.", example = "San Miguel")
   private String city;
 
   @NotNull(message = "lastSeen is required")
@@ -44,18 +42,12 @@ public class CreateDeviceRequestDto {
       requiredMode = Schema.RequiredMode.REQUIRED)
   private Instant lastBoot;
 
-  @Schema(
-      description = "Detection threshold configured for the device.",
-      example = "85")
+  @Schema(description = "Detection threshold configured for the device.", example = "85")
   private Integer detectionThreshold;
 
-  @Schema(
-      description = "Physical location of the device.",
-      example = "Front door")
+  @Schema(description = "Physical location of the device.", example = "Front door")
   private String location;
 
-  @Schema(
-      description = "Firmware version currently running on the device.",
-      example = "v1.3.7")
+  @Schema(description = "Firmware version currently running on the device.", example = "v1.3.7")
   private String firmwareVersion;
 }

@@ -243,7 +243,8 @@ public class DevicesControllerIntegrationTest {
         .perform(
             patch("/api/detective-manager/v1/devices/{deviceId}", DEVICE_ID)
                 .contentType("application/json")
-                .content("""
+                .content(
+                    """
                     { "location": "Back door" }
                     """))
         .andExpect(status().isOk())
@@ -259,7 +260,8 @@ public class DevicesControllerIntegrationTest {
         .perform(
             patch("/api/detective-manager/v1/devices/{deviceId}", DEVICE_ID)
                 .contentType("application/json")
-                .content("""
+                .content(
+                    """
                     { "firmwareVersion": "2.0.0" }
                     """))
         .andExpect(status().isOk())
@@ -274,7 +276,8 @@ public class DevicesControllerIntegrationTest {
         .perform(
             patch("/api/detective-manager/v1/devices/{deviceId}", DEVICE_ID)
                 .contentType("application/json")
-                .content("""
+                .content(
+                    """
                     { "lastSeen": "2024-01-01T13:00:00Z" }
                     """))
         .andExpect(status().isOk())
@@ -289,7 +292,8 @@ public class DevicesControllerIntegrationTest {
         .perform(
             patch("/api/detective-manager/v1/devices/{deviceId}", DEVICE_ID)
                 .contentType("application/json")
-                .content("""
+                .content(
+                    """
                     { "detectionThreshold": 75 }
                     """))
         .andExpect(status().isOk())
@@ -304,7 +308,8 @@ public class DevicesControllerIntegrationTest {
         .perform(
             patch("/api/detective-manager/v1/devices/{deviceId}", DEVICE_ID)
                 .contentType("application/json")
-                .content("""
+                .content(
+                    """
                     { "detectionThreshold": null }
                     """))
         .andExpect(status().isOk())

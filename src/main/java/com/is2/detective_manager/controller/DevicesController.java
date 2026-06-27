@@ -73,9 +73,7 @@ public class DevicesController {
     return ResponseEntity.status(201).body(StandardResponse.of(response));
   }
 
-  @Operation(
-      summary = "Get a device",
-      description = "Returns the device with the given ID")
+  @Operation(summary = "Get a device", description = "Returns the device with the given ID")
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "Device successfully retrieved"),
@@ -132,7 +130,8 @@ public class DevicesController {
 
   @Operation(
       summary = "Delete a device",
-      description = "Soft-deletes a device by setting its status to INACTIVE. The device will no longer be accessible through any endpoint.")
+      description =
+          "Soft-deletes a device by setting its status to INACTIVE. The device will no longer be accessible through any endpoint.")
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "204", description = "Device successfully deleted"),

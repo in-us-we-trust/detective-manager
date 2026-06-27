@@ -12,36 +12,29 @@ import lombok.Data;
 public class EventResponseDto {
 
   @Schema(
-          description = "Unique identifier of the event.",
-          example = "a4f2db85-07e8-4d74-a8a6-31d9d7c6b8d2")
+      description = "Unique identifier of the event.",
+      example = "a4f2db85-07e8-4d74-a8a6-31d9d7c6b8d2")
   private UUID id;
 
   @Schema(
-          description = "Identifier of the device that generated the event.",
-          example = "9df4a749-3ec2-43b9-bc42-35d2b6b5b173")
+      description = "Identifier of the device that generated the event.",
+      example = "9df4a749-3ec2-43b9-bc42-35d2b6b5b173")
   private UUID deviceId;
 
-  @Schema(
-          description = "Timestamp when the event occurred.",
-          example = "2026-06-27T18:30:00")
+  @Schema(description = "Timestamp when the event occurred.", example = "2026-06-27T18:30:00")
   private LocalDateTime timestamp;
 
-  @Schema(
-          description = "Indicates whether an intruder was detected.",
-          example = "true")
+  @Schema(description = "Indicates whether an intruder was detected.", example = "true")
   private boolean intruder;
 
   @Schema(
-          description = "Public URL of the image associated with the event.",
-          example = "https://res.cloudinary.com/demo/image/upload/v1750000000/events/event-001.jpg")
+      description = "Public URL of the image associated with the event.",
+      example = "https://res.cloudinary.com/demo/image/upload/v1750000000/events/event-001.jpg")
   private String imageUrl;
 
-  @Schema(
-          description = "Type of event detected.",
-          example = "PERSON_DETECTED")
+  @Schema(description = "Type of event detected.", example = "PERSON_DETECTED")
   private String eventType;
 
-  @Schema(
-          description = "Result of the face recognition process, if available.")
+  @Schema(description = "Result of the face recognition process, if available.")
   private FaceRecognitionResultDto faceRecognition;
 }

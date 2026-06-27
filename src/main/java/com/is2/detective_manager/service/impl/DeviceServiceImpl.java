@@ -83,8 +83,8 @@ public class DeviceServiceImpl implements DeviceService {
   public DeviceResponseDto claimDevice(UUID deviceId) {
     log.info("Claiming device with ID: {}", deviceId);
 
-    return transitionStatus(deviceId, DeviceStatus.UNCLAIMED, DeviceStatus.CLAIMED,
-        ExceptionEnum.DEVICE_NOT_CLAIMABLE);
+    return transitionStatus(
+        deviceId, DeviceStatus.UNCLAIMED, DeviceStatus.CLAIMED, ExceptionEnum.DEVICE_NOT_CLAIMABLE);
   }
 
   @Override
@@ -92,19 +92,25 @@ public class DeviceServiceImpl implements DeviceService {
   public DeviceResponseDto unclaimDevice(UUID deviceId) {
     log.info("Unclaiming device with ID: {}", deviceId);
 
-    return transitionStatus(deviceId, DeviceStatus.CLAIMED, DeviceStatus.UNCLAIMED,
+    return transitionStatus(
+        deviceId,
+        DeviceStatus.CLAIMED,
+        DeviceStatus.UNCLAIMED,
         ExceptionEnum.DEVICE_NOT_UNCLAIMABLE);
   }
 
   @Override
   @Transactional
   public void updateLastSeen(UUID deviceId) {
-    deviceRepository.findByIdAndStatusNot(deviceId, DeviceStatus.INACTIVE).ifPresent(device -> {
-      device.setLastSeen(Instant.now());
-      device.setUptime(calculateUptime(device));
-      deviceRepository.save(device);
-      log.info("lastSeen updated for device: {}", deviceId);
-    });
+    deviceRepository
+        .findByIdAndStatusNot(deviceId, DeviceStatus.INACTIVE)
+        .ifPresent(
+            device -> {
+              device.setLastSeen(Instant.now());
+              device.setUptime(calculateUptime(device));
+              deviceRepository.save(device);
+              log.info("lastSeen updated for device: {}", deviceId);
+            });
   }
 
   @Override
@@ -125,10 +131,7 @@ public class DeviceServiceImpl implements DeviceService {
   }
 
   private DeviceResponseDto transitionStatus(
-      UUID deviceId,
-      DeviceStatus expected,
-      DeviceStatus next,
-      ExceptionEnum conflictException) {
+      UUID deviceId, DeviceStatus expected, DeviceStatus next, ExceptionEnum conflictException) {
     var device = findDeviceOrThrow(deviceId);
 
     if (device.getStatus() != expected) {

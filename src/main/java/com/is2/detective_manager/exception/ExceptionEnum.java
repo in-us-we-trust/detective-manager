@@ -18,7 +18,8 @@ public enum ExceptionEnum {
       HttpStatus.BAD_GATEWAY,
       "There was an error sending the intruder notification."),
   EVENT_NOT_FOUND("Event not found.", HttpStatus.NOT_FOUND, "The requested event does not exist."),
-  DEVICE_NOT_FOUND("Device not found.", HttpStatus.NOT_FOUND, "The requested device does not exist."),
+  DEVICE_NOT_FOUND(
+      "Device not found.", HttpStatus.NOT_FOUND, "The requested device does not exist."),
   DEVICE_ALREADY_EXISTS(
       "Device already exists.",
       HttpStatus.CONFLICT,
