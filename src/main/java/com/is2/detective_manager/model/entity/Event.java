@@ -6,7 +6,7 @@ import java.util.UUID;
 import lombok.Data;
 
 @Entity
-@Table(name = "events")
+@Table(name = "dm_events")
 @Data
 public class Event {
 

@@ -9,8 +9,8 @@ import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(
-    name = "face_embeddings",
-    indexes = {@Index(name = "idx_face_embeddings_person", columnList = "person_id")})
+    name = "dm_face_embeddings",
+    indexes = {@Index(name = "idx_dm_face_embeddings_person", columnList = "person_id")})
 @Data
 public class FaceEmbedding {
 

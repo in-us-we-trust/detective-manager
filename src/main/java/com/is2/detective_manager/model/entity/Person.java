@@ -6,10 +6,10 @@ import lombok.Data;
 
 @Entity
 @Table(
-    name = "persons",
+    name = "dm_persons",
     uniqueConstraints = {
       @UniqueConstraint(
-          name = "uk_persons_device_normalized_name",
+          name = "uk_dm_persons_device_normalized_name",
           columnNames = {"device_id", "normalized_name"})
     })
 @Data

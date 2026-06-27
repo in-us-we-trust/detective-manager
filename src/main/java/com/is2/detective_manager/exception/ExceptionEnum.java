@@ -17,7 +17,25 @@ public enum ExceptionEnum {
       "Notification error",
       HttpStatus.BAD_GATEWAY,
       "There was an error sending the intruder notification."),
-  EVENT_NOT_FOUND("Event not found.", HttpStatus.NOT_FOUND, "The requested event does not exist.");
+  EVENT_NOT_FOUND("Event not found.", HttpStatus.NOT_FOUND, "The requested event does not exist."),
+  DEVICE_NOT_FOUND(
+      "Device not found.", HttpStatus.NOT_FOUND, "The requested device does not exist."),
+  DEVICE_ALREADY_EXISTS(
+      "Device already exists.",
+      HttpStatus.CONFLICT,
+      "A device with this ID is already registered."),
+  INVALID_LAST_SEEN(
+      "Invalid timestamps.",
+      HttpStatus.BAD_REQUEST,
+      "lastSeen must be greater than or equal to lastBoot."),
+  DEVICE_NOT_CLAIMABLE(
+      "Device cannot be claimed.",
+      HttpStatus.CONFLICT,
+      "The device must be in UNCLAIMED state to be claimed."),
+  DEVICE_NOT_UNCLAIMABLE(
+      "Device cannot be unclaimed.",
+      HttpStatus.CONFLICT,
+      "The device must be in CLAIMED state to be unclaimed.");
 
   private final String title;
   private final HttpStatus status;
