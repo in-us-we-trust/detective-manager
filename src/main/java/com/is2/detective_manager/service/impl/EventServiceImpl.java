@@ -17,6 +17,7 @@ import com.is2.detective_manager.model.dto.ReportEventResponseDto;
 import com.is2.detective_manager.model.entity.Event;
 import com.is2.detective_manager.repository.EventRepository;
 import com.is2.detective_manager.repository.FaceEmbeddingRepository;
+import com.is2.detective_manager.service.DeviceService;
 import com.is2.detective_manager.service.EventService;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -37,6 +38,7 @@ public class EventServiceImpl implements EventService {
   private final CloudinaryStorageClient cloudinaryStorageClient;
   private final EventRepository eventRepository;
   private final FaceEmbeddingRepository faceEmbeddingRepository;
+  private final DeviceService deviceService;
   private final EventMapper eventMapper;
   private final FaceEmbeddingMapper faceEmbeddingMapper;
 
@@ -56,6 +58,8 @@ public class EventServiceImpl implements EventService {
     Event event = eventMapper.toEvent(deviceUuid, isIntruder, imageUrl, request, faceRecognition);
     event = eventRepository.save(event);
     log.info("Event saved with ID: {}", event.getId());
+
+    deviceService.updateLastSeen(deviceUuid);
 
     if (isIntruder) {
       log.info("Intruder detected for device: {}, publishing notification", deviceId);
