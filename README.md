@@ -219,5 +219,3 @@ se conserva el log técnico completo en la ruta temporal indicada.
 
 No hace falta tener Java, Maven ni PostgreSQL instalados localmente; solamente
 Docker con Compose.
-
-Los clientes externos (`MlServiceApiClient`, `NotificationPublisher`, `CloudinaryStorageClient`) son mockeados en los tests.
