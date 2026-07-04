@@ -269,7 +269,6 @@ class PersonsControllerIntegrationTest {
                     "/api/detective-manager/v1/devices/{deviceId}/persons/{personId}/images",
                     DEVICE_ID,
                     personId)
-                .param("deviceId", DEVICE_ID)
                 .contentType("application/json")
                 .content(
                     """
@@ -326,11 +325,10 @@ class PersonsControllerIntegrationTest {
     mockMvc
         .perform(
             delete(
-                    "/api/detective-manager/v1/devices/{deviceId}/persons/{personId}/images/{imageId}",
-                    DEVICE_ID,
-                    personId,
-                    imageId)
-                .param("deviceId", DEVICE_ID))
+                "/api/detective-manager/v1/devices/{deviceId}/persons/{personId}/images/{imageId}",
+                DEVICE_ID,
+                personId,
+                imageId))
         .andExpect(status().isNoContent());
 
     assertEquals(1, faceEmbeddingRepository.count());
@@ -344,11 +342,10 @@ class PersonsControllerIntegrationTest {
     mockMvc
         .perform(
             delete(
-                    "/api/detective-manager/v1/devices/{deviceId}/persons/{personId}/images/{imageId}",
-                    DEVICE_ID,
-                    personId,
-                    999)
-                .param("deviceId", DEVICE_ID))
+                "/api/detective-manager/v1/devices/{deviceId}/persons/{personId}/images/{imageId}",
+                DEVICE_ID,
+                personId,
+                999))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.title").value("Image not found"));
   }
@@ -367,11 +364,10 @@ class PersonsControllerIntegrationTest {
     mockMvc
         .perform(
             delete(
-                    "/api/detective-manager/v1/devices/{deviceId}/persons/{personId}/images/{imageId}",
-                    DEVICE_ID,
-                    personId2,
-                    imageId)
-                .param("deviceId", DEVICE_ID))
+                "/api/detective-manager/v1/devices/{deviceId}/persons/{personId}/images/{imageId}",
+                DEVICE_ID,
+                personId2,
+                imageId))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.title").value("Invalid access"));
   }
