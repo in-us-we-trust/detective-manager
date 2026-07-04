@@ -149,7 +149,7 @@ public class PersonsController {
   @PostMapping("/{personId}/images")
   public ResponseEntity<StandardResponse<PersonResponseDto>> addImages(
       @PathVariable Long personId,
-      @RequestParam UUID deviceId,
+      @PathVariable UUID deviceId,
       @Valid @RequestBody AddPersonImagesRequestDto request) {
 
     var response = personService.addImages(deviceId, personId, request);
@@ -163,7 +163,7 @@ public class PersonsController {
   })
   @DeleteMapping("/{personId}/images/{imageId}")
   public ResponseEntity<Void> deleteImage(
-      @PathVariable Long personId, @PathVariable Long imageId, @RequestParam UUID deviceId) {
+      @PathVariable Long personId, @PathVariable Long imageId, @PathVariable UUID deviceId) {
 
     personService.deleteImage(deviceId, personId, imageId);
     return ResponseEntity.noContent().build();
