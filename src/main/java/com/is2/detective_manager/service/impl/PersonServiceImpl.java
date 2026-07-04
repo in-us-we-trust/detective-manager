@@ -57,10 +57,10 @@ public class PersonServiceImpl implements PersonService {
   @Transactional
   public PersonResponseDto createPerson(UUID deviceId, CreatePersonRequestDto request) {
     log.info(
-            "Creating person {} with {} images for device {}",
-            request.getName(),
-            request.getImages().size(),
-            deviceId);
+        "Creating person {} with {} images for device {}",
+        request.getName(),
+        request.getImages().size(),
+        deviceId);
 
     Person person = personMapper.toEntity(deviceId, request);
     person = personRepository.save(person);
@@ -72,22 +72,19 @@ public class PersonServiceImpl implements PersonService {
     }
 
     log.info(
-            "Person {} created with {} face embeddings",
-            person.getId(),
-            request.getImages().size());
+        "Person {} created with {} face embeddings", person.getId(), request.getImages().size());
 
     return toResponseWithImages(deviceId, person);
   }
+
   private FaceEmbedding createEmbedding(Person person, String image, String imageUrl) {
 
     GeneratedFaceEmbeddingDto generated =
-            mlServiceApiClient.generateFaceEmbedding(
-                    new MlFaceEmbeddingRequestDto(image));
+        mlServiceApiClient.generateFaceEmbedding(new MlFaceEmbeddingRequestDto(image));
 
     validateGeneratedEmbedding(generated);
 
-    FaceEmbedding embedding =
-            personMapper.toEntity(person, generated, imageUrl);
+    FaceEmbedding embedding = personMapper.toEntity(person, generated, imageUrl);
 
     return faceEmbeddingRepository.save(embedding);
   }
@@ -98,8 +95,8 @@ public class PersonServiceImpl implements PersonService {
     log.info("Fetching persons for device {}", deviceId);
 
     return personRepository.findAllByDeviceIdOrderByCreatedAtAscIdAsc(deviceId).stream()
-            .map(person -> toResponseWithImages(deviceId, person))
-            .toList();
+        .map(person -> toResponseWithImages(deviceId, person))
+        .toList();
   }
 
   @Override
@@ -119,22 +116,18 @@ public class PersonServiceImpl implements PersonService {
     Person person = getPersonEntity(deviceId, personId);
     return toResponseWithImages(deviceId, person);
   }
+
   private Person getPersonEntity(UUID deviceId, Long personId) {
     return personRepository
-            .findByDeviceIdAndId(deviceId, personId)
-            .orElseThrow(
-                    () ->
-                            new DetectiveException(
-                                    ExceptionEnum.PERSON_NOT_FOUND,
-                                    "Person not found."));
+        .findByDeviceIdAndId(deviceId, personId)
+        .orElseThrow(
+            () -> new DetectiveException(ExceptionEnum.PERSON_NOT_FOUND, "Person not found."));
   }
 
   @Override
   @Transactional
   public PersonResponseDto updatePerson(
-          UUID deviceId,
-          Long personId,
-          UpdatePersonRequestDto request) {
+      UUID deviceId, Long personId, UpdatePersonRequestDto request) {
 
     log.info("Updating person {} for device {}", personId, deviceId);
 
@@ -147,18 +140,18 @@ public class PersonServiceImpl implements PersonService {
     return toResponseWithImages(deviceId, person);
   }
 
-
   @Override
   @Transactional
   public void deleteImage(UUID deviceId, Long personId, Long imageId) {
 
     FaceEmbedding embedding =
-            faceEmbeddingRepository
-                    .findById(imageId)
-                    .orElseThrow(() -> new DetectiveException(ExceptionEnum.IMAGE_NOT_FOUND, "Image not found"));
+        faceEmbeddingRepository
+            .findById(imageId)
+            .orElseThrow(
+                () -> new DetectiveException(ExceptionEnum.IMAGE_NOT_FOUND, "Image not found"));
 
     if (!embedding.getPerson().getId().equals(personId)
-            || !embedding.getPerson().getDeviceId().equals(deviceId)) {
+        || !embedding.getPerson().getDeviceId().equals(deviceId)) {
       throw new DetectiveException(ExceptionEnum.NOT_ALLOWED_IMAGE_ACTION, "Invalid access");
     }
 
@@ -166,8 +159,13 @@ public class PersonServiceImpl implements PersonService {
   }
 
   @Override
-  public PersonResponseDto addImages(UUID deviceId, Long personId, AddPersonImagesRequestDto request) {
-    log.info("Adding {} images to person {} for device {}", request.getImages().size(), personId, deviceId);
+  public PersonResponseDto addImages(
+      UUID deviceId, Long personId, AddPersonImagesRequestDto request) {
+    log.info(
+        "Adding {} images to person {} for device {}",
+        request.getImages().size(),
+        personId,
+        deviceId);
 
     Person person = getPersonEntity(deviceId, personId);
 
@@ -178,7 +176,6 @@ public class PersonServiceImpl implements PersonService {
 
     return toResponseWithImages(deviceId, person);
   }
-
 
   private void validateGeneratedEmbedding(GeneratedFaceEmbeddingDto generated) {
     if (generated == null
@@ -196,11 +193,12 @@ public class PersonServiceImpl implements PersonService {
 
   private PersonResponseDto toResponseWithImages(UUID deviceId, Person person) {
     var response = personMapper.toResponseDto(person);
-    var list = faceEmbeddingRepository.findAllByPerson_DeviceIdAndPerson_IdOrderByCreatedAtAsc(
-                              deviceId, person.getId())
-                      .stream()
-                      .map(personMapper::toPersonImageResponseDto)
-                      .toList();
+    var list =
+        faceEmbeddingRepository
+            .findAllByPerson_DeviceIdAndPerson_IdOrderByCreatedAtAsc(deviceId, person.getId())
+            .stream()
+            .map(personMapper::toPersonImageResponseDto)
+            .toList();
     response.setImages(list);
     return response;
   }

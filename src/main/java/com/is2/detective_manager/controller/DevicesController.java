@@ -25,9 +25,7 @@ public class DevicesController {
   private final EventService eventService;
 
   @Autowired
-  public DevicesController(
-      DeviceService deviceService,
-      EventService eventService) {
+  public DevicesController(DeviceService deviceService, EventService eventService) {
     this.deviceService = deviceService;
     this.eventService = eventService;
   }
@@ -247,5 +245,4 @@ public class DevicesController {
       @PathVariable UUID deviceId) {
     return ResponseEntity.ok(StandardResponse.of(eventService.getEventsByDevice(deviceId)));
   }
-
 }

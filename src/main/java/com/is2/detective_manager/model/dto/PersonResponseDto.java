@@ -7,9 +7,9 @@ import lombok.Data;
 @Data
 public class PersonResponseDto {
 
-    private Long id;
-    private UUID deviceId;
-    private String name;
-    private String role;
-    private List<PersonImageResponseDto> images;
+  private Long id;
+  private UUID deviceId;
+  private String name;
+  private String role;
+  private List<PersonImageResponseDto> images;
 }

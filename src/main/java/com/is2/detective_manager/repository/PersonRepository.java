@@ -1,8 +1,6 @@
 package com.is2.detective_manager.repository;
 
 import com.is2.detective_manager.model.entity.Person;
-
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;

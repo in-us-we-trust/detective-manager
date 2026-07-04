@@ -3,9 +3,8 @@ package com.is2.detective_manager.mapper;
 import com.is2.detective_manager.model.dto.*;
 import com.is2.detective_manager.model.entity.FaceEmbedding;
 import com.is2.detective_manager.model.entity.Person;
-import org.mapstruct.*;
-
 import java.util.UUID;
+import org.mapstruct.*;
 
 @Mapper(componentModel = "spring")
 public interface PersonMapper {
@@ -26,9 +25,7 @@ public interface PersonMapper {
 
   @Mapping(target = "id", ignore = true)
   @Mapping(target = "deviceId", source = "deviceId")
-  @Mapping(
-          target = "normalizedName",
-          expression = "java(request.getName().trim().toLowerCase())")
+  @Mapping(target = "normalizedName", expression = "java(request.getName().trim().toLowerCase())")
   @Mapping(target = "createdAt", expression = "java(java.time.LocalDateTime.now())")
   Person toEntity(UUID deviceId, CreatePersonRequestDto request);
 

@@ -7,6 +7,5 @@ import lombok.Data;
 @Data
 public class AddPersonImagesRequestDto {
 
-    @NotEmpty
-    private List<String> images;
+  @NotEmpty private List<String> images;
 }

@@ -7,6 +7,6 @@ import lombok.Data;
 @Builder
 public class PersonImageResponseDto {
 
-    private Long id;
-    private String imageUrl;
+  private Long id;
+  private String imageUrl;
 }

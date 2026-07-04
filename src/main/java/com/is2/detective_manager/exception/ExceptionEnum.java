@@ -36,9 +36,13 @@ public enum ExceptionEnum {
       "Device cannot be unclaimed.",
       HttpStatus.CONFLICT,
       "The device must be in CLAIMED state to be unclaimed."),
-  PERSON_NOT_FOUND("Person not found.", HttpStatus.NOT_FOUND, "The requested person does not exist."),
+  PERSON_NOT_FOUND(
+      "Person not found.", HttpStatus.NOT_FOUND, "The requested person does not exist."),
   IMAGE_NOT_FOUND("Image not found", HttpStatus.NOT_FOUND, "The requested image does not exist."),
-  NOT_ALLOWED_IMAGE_ACTION("Invalid access", HttpStatus.FORBIDDEN, "You do not have permission to access this resource.");
+  NOT_ALLOWED_IMAGE_ACTION(
+      "Invalid access",
+      HttpStatus.FORBIDDEN,
+      "You do not have permission to access this resource.");
 
   private final String title;
   private final HttpStatus status;

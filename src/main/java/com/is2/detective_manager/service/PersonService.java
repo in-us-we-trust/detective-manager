@@ -1,7 +1,6 @@
 package com.is2.detective_manager.service;
 
 import com.is2.detective_manager.model.dto.*;
-
 import java.util.List;
 import java.util.UUID;
 
