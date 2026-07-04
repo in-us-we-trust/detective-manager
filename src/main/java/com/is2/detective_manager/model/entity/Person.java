@@ -1,6 +1,8 @@
 package com.is2.detective_manager.model.entity;
 
 import jakarta.persistence.*;
+
+import java.time.LocalDateTime;
 import java.util.UUID;
 import lombok.Data;
 
@@ -27,4 +29,10 @@ public class Person {
 
   @Column(name = "normalized_name", nullable = false)
   private String normalizedName;
+
+  @Column(name = "created_at", nullable = false)
+  private LocalDateTime createdAt;
+
+  @Column()
+  private String role;
 }

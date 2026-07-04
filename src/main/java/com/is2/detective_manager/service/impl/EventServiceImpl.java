@@ -6,7 +6,7 @@ import com.is2.detective_manager.client.NotificationPublisher;
 import com.is2.detective_manager.exception.DetectiveException;
 import com.is2.detective_manager.exception.ExceptionEnum;
 import com.is2.detective_manager.mapper.EventMapper;
-import com.is2.detective_manager.mapper.FaceEmbeddingMapper;
+import com.is2.detective_manager.mapper.PersonMapper;
 import com.is2.detective_manager.model.dto.EventResponseDto;
 import com.is2.detective_manager.model.dto.FaceEmbeddingResponseDto;
 import com.is2.detective_manager.model.dto.FaceRecognitionResultDto;
@@ -40,7 +40,7 @@ public class EventServiceImpl implements EventService {
   private final FaceEmbeddingRepository faceEmbeddingRepository;
   private final DeviceService deviceService;
   private final EventMapper eventMapper;
-  private final FaceEmbeddingMapper faceEmbeddingMapper;
+  private final PersonMapper personMapper;
 
   @Override
   @Transactional
@@ -117,7 +117,7 @@ public class EventServiceImpl implements EventService {
   private FaceRecognitionResultDto recognizeFace(UUID deviceId, String image) {
     List<FaceEmbeddingResponseDto> embeddings =
         faceEmbeddingRepository.findAllByPerson_DeviceIdOrderByCreatedAtAscIdAsc(deviceId).stream()
-            .map(faceEmbeddingMapper::toResponseDto)
+            .map(personMapper::toResponseDto)
             .toList();
 
     return mlServiceApiClient.recognizeFace(new MlFaceRecognitionRequestDto(image, embeddings));
