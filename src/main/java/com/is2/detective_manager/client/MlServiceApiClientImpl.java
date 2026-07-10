@@ -118,7 +118,7 @@ public class MlServiceApiClientImpl implements MlServiceApiClient {
       throw new DetectiveException(ExceptionEnum.ML_SERVICE_ERROR);
     }
 
-    if (response == null  || response.getData() == null) {
+    if (response == null || response.getData() == null) {
       log.warn("ML clustering service returned empty response");
       return Collections.emptyList();
     }

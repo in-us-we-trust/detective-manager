@@ -8,5 +8,5 @@ import lombok.Data;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class MlClusteringResponseDto {
 
-  private List<ClusterDto>  data;
+  private List<ClusterDto> data;
 }

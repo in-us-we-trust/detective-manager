@@ -31,6 +31,7 @@ public class RabbitNotificationPublisher implements NotificationPublisher {
 
   @Override
   public void publishIntruderDetected(IntruderNotificationMessageDto message) {
+    if (true) return;
     log.info("Publishing intruder notification for device {}", message.getDeviceId());
 
     AmqpException lastException = null;

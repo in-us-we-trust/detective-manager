@@ -21,8 +21,8 @@ public class UpdatePersonRequestDto {
   private String name;
 
   @Schema(
-          description = "Person status.",
-          example = "REJECTED",
-          requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+      description = "Person status.",
+      example = "REJECTED",
+      requiredMode = Schema.RequiredMode.NOT_REQUIRED)
   private PersonStatus status;
 }

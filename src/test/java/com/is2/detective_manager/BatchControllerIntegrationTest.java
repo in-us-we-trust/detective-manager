@@ -151,9 +151,7 @@ class BatchControllerIntegrationTest {
 
     when(mlServiceApiClient.clusterEmbeddings(any())).thenReturn(List.of(cluster));
 
-    mockMvc
-        .perform(post("/api/detective-manager/v1/batch/persons"))
-        .andExpect(status().isOk());
+    mockMvc.perform(post("/api/detective-manager/v1/batch/persons")).andExpect(status().isOk());
 
     var allEmbeddings = faceEmbeddingRepository.findAll();
     allEmbeddings.forEach(
@@ -173,9 +171,7 @@ class BatchControllerIntegrationTest {
 
     when(mlServiceApiClient.clusterEmbeddings(any())).thenReturn(List.of(cluster));
 
-    mockMvc
-        .perform(post("/api/detective-manager/v1/batch/persons"))
-        .andExpect(status().isOk());
+    mockMvc.perform(post("/api/detective-manager/v1/batch/persons")).andExpect(status().isOk());
 
     verify(unknownPersonEventPublisher, times(1))
         .publishUnknownPersonDetected(
@@ -215,8 +211,6 @@ class BatchControllerIntegrationTest {
 
   private List<LocalDateTime> sameDays() {
     LocalDateTime sameDay = LocalDateTime.now().minusDays(2);
-    return List.of(
-        sameDay.withHour(9),
-        sameDay.withHour(14));
+    return List.of(sameDay.withHour(9), sameDay.withHour(14));
   }
 }

@@ -52,8 +52,7 @@ public class RabbitUnknownPersonEventPublisher implements UnknownPersonEventPubl
       }
     }
 
-    log.error(
-        "Failed to publish unknown person event to RabbitMQ after retries", lastException);
+    log.error("Failed to publish unknown person event to RabbitMQ after retries", lastException);
     throw new DetectiveException(ExceptionEnum.NOTIFICATION_ERROR);
   }
 

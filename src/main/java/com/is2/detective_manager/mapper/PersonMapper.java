@@ -2,9 +2,7 @@ package com.is2.detective_manager.mapper;
 
 import com.is2.detective_manager.model.dto.*;
 import com.is2.detective_manager.model.entity.FaceEmbedding;
-import com.is2.detective_manager.model.entity.FaceEmbeddingStatus;
 import com.is2.detective_manager.model.entity.Person;
-import com.is2.detective_manager.model.entity.PersonStatus;
 import java.util.UUID;
 import org.mapstruct.*;
 
@@ -18,7 +16,10 @@ public interface PersonMapper {
   @Mapping(target = "modelName", source = "generated.modelName")
   @Mapping(target = "detectorBackend", source = "generated.detectorBackend")
   @Mapping(target = "createdAt", expression = "java(java.time.LocalDateTime.now())")
-  @Mapping(target = "status", expression = "java(com.is2.detective_manager.model.entity.FaceEmbeddingStatus.CREATED_BY_USER)")
+  @Mapping(
+      target = "status",
+      expression =
+          "java(com.is2.detective_manager.model.entity.FaceEmbeddingStatus.CREATED_BY_USER)")
   FaceEmbedding toEntity(Person person, GeneratedFaceEmbeddingDto generated, String imageUrl);
 
   @Mapping(target = "id", ignore = true)
@@ -41,11 +42,7 @@ public interface PersonMapper {
 
   @Mapping(target = "id", ignore = true)
   @Mapping(target = "deviceId", source = "deviceId")
-  @Mapping(
-          target = "normalizedName",
-          source = "request.name",
-          qualifiedByName = "normalizeName"
-  )
+  @Mapping(target = "normalizedName", source = "request.name", qualifiedByName = "normalizeName")
   @Mapping(target = "createdAt", expression = "java(java.time.LocalDateTime.now())")
   @Mapping(
       target = "status",
@@ -61,6 +58,7 @@ public interface PersonMapper {
 
   @Mapping(target = "imageUrl", source = "imageUrl")
   PersonImageResponseDto toPersonImageResponseDto(FaceEmbedding embedding);
+
   @AfterMapping
   default void afterUpdate(@MappingTarget Person person, UpdatePersonRequestDto request) {
     String normalizedName = normalizeName(request.getName());
@@ -68,6 +66,7 @@ public interface PersonMapper {
       person.setNormalizedName(normalizedName);
     }
   }
+
   @Named("normalizeName")
   default String normalizeName(String name) {
     if (name == null) {
@@ -77,5 +76,4 @@ public interface PersonMapper {
     name = name.trim();
     return name.isEmpty() ? null : name.toLowerCase();
   }
-
 }

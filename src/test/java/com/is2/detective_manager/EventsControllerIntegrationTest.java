@@ -104,8 +104,7 @@ public class EventsControllerIntegrationTest {
     when(mlServiceApiClient.recognizeFace(any()))
         .thenReturn(FaceRecognitionResultDto.builder().known(false).build());
     when(mlServiceApiClient.generateFaceEmbedding(any()))
-        .thenReturn(
-            new GeneratedFaceEmbeddingDto(List.of(0.1, 0.2, 0.3), "ArcFace", "retinaface"));
+        .thenReturn(new GeneratedFaceEmbeddingDto(List.of(0.1, 0.2, 0.3), "ArcFace", "retinaface"));
 
     mockMvc
         .perform(

@@ -15,6 +15,7 @@ import com.is2.detective_manager.model.entity.PersonStatus;
 import com.is2.detective_manager.repository.FaceEmbeddingRepository;
 import com.is2.detective_manager.repository.PersonRepository;
 import com.is2.detective_manager.service.BatchService;
+import com.is2.detective_manager.service.PersonService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -24,8 +25,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
-import com.is2.detective_manager.service.PersonService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -61,21 +60,21 @@ public class BatchServiceImpl implements BatchService {
 
     if (orphans.isEmpty()) {
       return BatchResponseDto.builder()
-              .deletedOrphanEmbeddings(deleted)
-              .orphanEmbeddingsProcessed(0)
-              .unknownPersonsCreated(0)
-              .build();
+          .deletedOrphanEmbeddings(deleted)
+          .orphanEmbeddingsProcessed(0)
+          .unknownPersonsCreated(0)
+          .build();
     }
 
     List<FaceEmbeddingResponseDto> embeddingDtos =
-            orphans.stream().map(personMapper::toResponseDto).toList();
+        orphans.stream().map(personMapper::toResponseDto).toList();
 
     List<ClusterDto> clusters =
-            mlServiceApiClient.clusterEmbeddings(new MlClusteringRequestDto(embeddingDtos));
+        mlServiceApiClient.clusterEmbeddings(new MlClusteringRequestDto(embeddingDtos));
     log.info("ML service returned {} clusters", clusters.size());
 
     Map<Long, FaceEmbedding> embeddingById =
-            orphans.stream().collect(Collectors.toMap(FaceEmbedding::getId, e -> e));
+        orphans.stream().collect(Collectors.toMap(FaceEmbedding::getId, e -> e));
 
     int personsCreated = 0;
     for (ClusterDto cluster : clusters) {
@@ -83,29 +82,27 @@ public class BatchServiceImpl implements BatchService {
     }
 
     log.info(
-            "Batch completed: deleted={}, processed={}, created={}",
-            deleted,
-            orphans.size(),
-            personsCreated);
+        "Batch completed: deleted={}, processed={}, created={}",
+        deleted,
+        orphans.size(),
+        personsCreated);
 
     return BatchResponseDto.builder()
-            .deletedOrphanEmbeddings(deleted)
-            .orphanEmbeddingsProcessed(orphans.size())
-            .unknownPersonsCreated(personsCreated)
-            .build();
+        .deletedOrphanEmbeddings(deleted)
+        .orphanEmbeddingsProcessed(orphans.size())
+        .unknownPersonsCreated(personsCreated)
+        .build();
   }
 
   public int deleteNonKnownPersonsCreatedBefore() {
     LocalDateTime threshold = LocalDateTime.now().minusDays(ignoredPersonExpiryDays);
     List<Person> persons =
-            personRepository.findAllByStatusNotAndCreatedAtBefore(
-                    PersonStatus.KNOWN,
-                    threshold
-            );
+        personRepository.findAllByStatusNotAndCreatedAtBefore(PersonStatus.KNOWN, threshold);
     persons.forEach(person -> personService.deletePerson(person.getDeviceId(), person.getId()));
 
     return persons.size();
   }
+
   private int deleteExpiredOrphanEmbeddings() {
     LocalDateTime threshold = LocalDateTime.now().minusDays(orphanExpiryDays);
     return faceEmbeddingRepository.deleteOrphanEmbeddingsOlderThan(threshold);
@@ -121,24 +118,21 @@ public class BatchServiceImpl implements BatchService {
 
     return personsDeleted + embeddingsDeleted;
   }
+
   private int processCluster(ClusterDto cluster, Map<Long, FaceEmbedding> embeddingById) {
     if (cluster.getEmbeddingIds() == null || cluster.getEmbeddingIds().isEmpty()) {
       return 0;
     }
 
     List<FaceEmbedding> clusterEmbeddings =
-        cluster.getEmbeddingIds().stream()
-            .map(embeddingById::get)
-            .filter(e -> e != null)
-            .toList();
+        cluster.getEmbeddingIds().stream().map(embeddingById::get).filter(e -> e != null).toList();
 
     if (clusterEmbeddings.isEmpty()) {
       return 0;
     }
 
     Map<UUID, List<FaceEmbedding>> byDevice =
-        clusterEmbeddings.stream()
-            .collect(Collectors.groupingBy(FaceEmbedding::getDeviceId));
+        clusterEmbeddings.stream().collect(Collectors.groupingBy(FaceEmbedding::getDeviceId));
 
     int created = 0;
     for (Map.Entry<UUID, List<FaceEmbedding>> entry : byDevice.entrySet()) {
@@ -214,7 +208,8 @@ public class BatchServiceImpl implements BatchService {
             .tags(List.of("unknown-person", "suggestion"))
             .deviceId(person.getDeviceId())
             .personId(person.getId())
-            .time(LocalDateTime.now().atOffset(ZoneOffset.UTC).format(DateTimeFormatter.ISO_INSTANT))
+            .time(
+                LocalDateTime.now().atOffset(ZoneOffset.UTC).format(DateTimeFormatter.ISO_INSTANT))
             .title("Unknown person detected")
             .message(
                 "An unrecognized person was seen multiple times. Would you like to add them as a known person?")

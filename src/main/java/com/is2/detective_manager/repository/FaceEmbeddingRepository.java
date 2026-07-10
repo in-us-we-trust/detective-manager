@@ -24,7 +24,6 @@ public interface FaceEmbeddingRepository extends JpaRepository<FaceEmbedding, Lo
   List<FaceEmbedding> findAllByPersonIsNull();
 
   @Modifying
-  @Query(
-      "DELETE FROM FaceEmbedding fe WHERE fe.person IS NULL AND fe.createdAt < :threshold")
+  @Query("DELETE FROM FaceEmbedding fe WHERE fe.person IS NULL AND fe.createdAt < :threshold")
   int deleteOrphanEmbeddingsOlderThan(@Param("threshold") LocalDateTime threshold);
 }
