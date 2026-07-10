@@ -1,0 +1,91 @@
+Listado de rutas de carpetas
+El n£mero de serie del volumen es 7E14-D52A
+C:.
++---.github
+|   \---workflows
++---.idea
++---.postman
++---base_64
++---postman
+|   \---globals
++---scripts
++---src
+|   +---main
+|   |   +---java
+|   |   |   \---com
+|   |   |       \---is2
+|   |   |           \---detective_manager
+|   |   |               +---client
+|   |   |               +---configuration
+|   |   |               +---controller
+|   |   |               +---exception
+|   |   |               +---mapper
+|   |   |               +---middleware
+|   |   |               +---model
+|   |   |               |   +---dto
+|   |   |               |   +---entity
+|   |   |               |   \---generic
+|   |   |               +---repository
+|   |   |               \---service
+|   |   |                   \---impl
+|   |   \---resources
+|   \---test
+|       +---java
+|       |   \---com
+|       |       \---is2
+|       |           \---detective_manager
+|       |               \---client
+|       \---resources
+|           \---wiremock
+\---target
+    +---classes
+    |   \---com
+    |       \---is2
+    |           \---detective_manager
+    |               +---client
+    |               +---configuration
+    |               +---controller
+    |               +---exception
+    |               +---mapper
+    |               +---middleware
+    |               +---model
+    |               |   +---dto
+    |               |   +---entity
+    |               |   \---generic
+    |               +---repository
+    |               \---service
+    |                   \---impl
+    +---generated-sources
+    |   \---annotations
+    |       \---com
+    |           \---is2
+    |               \---detective_manager
+    |                   \---mapper
+    +---generated-test-sources
+    |   \---test-annotations
+    +---maven-archiver
+    +---maven-status
+    |   \---maven-compiler-plugin
+    |       +---compile
+    |       |   \---default-compile
+    |       \---testCompile
+    |           \---default-testCompile
+    +---site
+    |   \---jacoco
+    |       +---com.is2.detective_manager
+    |       +---com.is2.detective_manager.client
+    |       +---com.is2.detective_manager.configuration
+    |       +---com.is2.detective_manager.controller
+    |       +---com.is2.detective_manager.exception
+    |       +---com.is2.detective_manager.mapper
+    |       +---com.is2.detective_manager.middleware
+    |       +---com.is2.detective_manager.model.entity
+    |       +---com.is2.detective_manager.model.generic
+    |       +---com.is2.detective_manager.service.impl
+    |       \---jacoco-resources
+    +---surefire-reports
+    \---test-classes
+        \---com
+            \---is2
+                \---detective_manager
+                    \---client

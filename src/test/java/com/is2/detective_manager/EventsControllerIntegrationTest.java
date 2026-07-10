@@ -1,5 +1,6 @@
 package com.is2.detective_manager;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -16,7 +17,10 @@ import com.is2.detective_manager.client.CloudinaryStorageClient;
 import com.is2.detective_manager.client.MlServiceApiClient;
 import com.is2.detective_manager.client.NotificationPublisher;
 import com.is2.detective_manager.model.dto.FaceRecognitionResultDto;
+import com.is2.detective_manager.model.dto.GeneratedFaceEmbeddingDto;
 import com.is2.detective_manager.model.dto.IntruderNotificationMessageDto;
+import com.is2.detective_manager.repository.FaceEmbeddingRepository;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,6 +38,7 @@ public class EventsControllerIntegrationTest {
 
   @Autowired private MockMvc mockMvc;
   @Autowired private DbTestUtils dbUtils;
+  @Autowired private FaceEmbeddingRepository faceEmbeddingRepository;
 
   @MockitoBean private MlServiceApiClient mlServiceApiClient;
   @MockitoBean private NotificationPublisher notificationPublisher;
@@ -95,6 +100,61 @@ public class EventsControllerIntegrationTest {
   }
 
   @Test
+  void reportEvent_intruderDetected_persistsOrphanEmbedding() throws Exception {
+    when(mlServiceApiClient.recognizeFace(any()))
+        .thenReturn(FaceRecognitionResultDto.builder().known(false).build());
+    when(mlServiceApiClient.generateFaceEmbedding(any()))
+        .thenReturn(
+            new GeneratedFaceEmbeddingDto(List.of(0.1, 0.2, 0.3), "ArcFace", "retinaface"));
+
+    mockMvc
+        .perform(
+            post("/api/detective-manager/v1/events")
+                .contentType("application/json")
+                .header("device_id", DEVICE_ID)
+                .content(
+                    """
+                    {
+                      "image": "%s",
+                      "type": "bell"
+                    }
+                    """
+                        .formatted(VALID_BASE64_IMAGE)))
+        .andExpect(status().isCreated());
+
+    assertEquals(1, faceEmbeddingRepository.count());
+    var orphans = faceEmbeddingRepository.findAllByPersonIsNull();
+    assertEquals(1, orphans.size());
+    assertEquals(MOCK_IMAGE_URL, orphans.get(0).getImageUrl());
+  }
+
+  @Test
+  void reportEvent_intruderDetected_embeddingFailure_doesNotAffectEvent() throws Exception {
+    when(mlServiceApiClient.recognizeFace(any()))
+        .thenReturn(FaceRecognitionResultDto.builder().known(false).build());
+    when(mlServiceApiClient.generateFaceEmbedding(any()))
+        .thenThrow(new RuntimeException("ML service down"));
+
+    mockMvc
+        .perform(
+            post("/api/detective-manager/v1/events")
+                .contentType("application/json")
+                .header("device_id", DEVICE_ID)
+                .content(
+                    """
+                    {
+                      "image": "%s",
+                      "type": "bell"
+                    }
+                    """
+                        .formatted(VALID_BASE64_IMAGE)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.data.isIntruder").value(true));
+
+    assertEquals(0, faceEmbeddingRepository.count());
+  }
+
+  @Test
   void reportEvent_noIntruderDetected_returnsCreatedAndDoesNotNotify() throws Exception {
     when(mlServiceApiClient.recognizeFace(any()))
         .thenReturn(FaceRecognitionResultDto.builder().known(true).build());
@@ -118,6 +178,7 @@ public class EventsControllerIntegrationTest {
 
     verify(notificationPublisher, never())
         .publishIntruderDetected(any(IntruderNotificationMessageDto.class));
+    assertEquals(0, faceEmbeddingRepository.count());
   }
 
   @Test

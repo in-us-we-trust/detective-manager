@@ -1,5 +1,6 @@
 package com.is2.detective_manager.model.dto;
 
+import com.is2.detective_manager.model.entity.PersonStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
@@ -18,4 +19,10 @@ public class UpdatePersonRequestDto {
       example = "Juan Perez",
       requiredMode = Schema.RequiredMode.NOT_REQUIRED)
   private String name;
+
+  @Schema(
+          description = "Person status.",
+          example = "REJECTED",
+          requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+  private PersonStatus status;
 }

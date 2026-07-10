@@ -10,11 +10,15 @@ import com.is2.detective_manager.mapper.PersonMapper;
 import com.is2.detective_manager.model.dto.EventResponseDto;
 import com.is2.detective_manager.model.dto.FaceEmbeddingResponseDto;
 import com.is2.detective_manager.model.dto.FaceRecognitionResultDto;
+import com.is2.detective_manager.model.dto.GeneratedFaceEmbeddingDto;
 import com.is2.detective_manager.model.dto.IntruderNotificationMessageDto;
+import com.is2.detective_manager.model.dto.MlFaceEmbeddingRequestDto;
 import com.is2.detective_manager.model.dto.MlFaceRecognitionRequestDto;
 import com.is2.detective_manager.model.dto.ReportEventRequestDto;
 import com.is2.detective_manager.model.dto.ReportEventResponseDto;
 import com.is2.detective_manager.model.entity.Event;
+import com.is2.detective_manager.model.entity.FaceEmbedding;
+import com.is2.detective_manager.model.entity.PersonStatus;
 import com.is2.detective_manager.repository.EventRepository;
 import com.is2.detective_manager.repository.FaceEmbeddingRepository;
 import com.is2.detective_manager.service.DeviceService;
@@ -64,6 +68,7 @@ public class EventServiceImpl implements EventService {
     if (isIntruder) {
       log.info("Intruder detected for device: {}, publishing notification", deviceId);
       notificationPublisher.publishIntruderDetected(buildIntruderNotificationMessage(event));
+      saveOrphanEmbeddingIfPossible(deviceUuid, request.getImage(), imageUrl);
     }
 
     return eventMapper.toReportEventResponseDto(event);
@@ -116,11 +121,40 @@ public class EventServiceImpl implements EventService {
 
   private FaceRecognitionResultDto recognizeFace(UUID deviceId, String image) {
     List<FaceEmbeddingResponseDto> embeddings =
-        faceEmbeddingRepository.findAllByPerson_DeviceIdOrderByCreatedAtAscIdAsc(deviceId).stream()
+        faceEmbeddingRepository
+            .findAllByPerson_DeviceIdAndPerson_StatusOrderByCreatedAtAscIdAsc(
+                deviceId, PersonStatus.KNOWN)
+            .stream()
             .map(personMapper::toResponseDto)
             .toList();
 
     return mlServiceApiClient.recognizeFace(new MlFaceRecognitionRequestDto(image, embeddings));
+  }
+
+  private void saveOrphanEmbeddingIfPossible(UUID deviceId, String image, String imageUrl) {
+    try {
+      GeneratedFaceEmbeddingDto generated =
+          mlServiceApiClient.generateFaceEmbedding(new MlFaceEmbeddingRequestDto(image));
+
+      if (generated == null
+          || generated.getEmbedding() == null
+          || generated.getEmbedding().isEmpty()
+          || generated.getModelName() == null
+          || generated.getModelName().isBlank()) {
+        log.warn("ML service returned invalid embedding for orphan - skipping persistence");
+        return;
+      }
+
+      FaceEmbedding embedding = personMapper.toOrphanEntity(deviceId, generated, imageUrl);
+      faceEmbeddingRepository.save(embedding);
+      log.info("Orphan face embedding saved for device {}", deviceId);
+
+    } catch (Exception e) {
+      log.warn(
+          "Failed to generate/save orphan face embedding for device {}. Continuing without it.",
+          deviceId,
+          e);
+    }
   }
 
   private IntruderNotificationMessageDto buildIntruderNotificationMessage(Event event) {

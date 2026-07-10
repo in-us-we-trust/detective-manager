@@ -8,6 +8,7 @@ import com.is2.detective_manager.mapper.PersonMapper;
 import com.is2.detective_manager.model.dto.*;
 import com.is2.detective_manager.model.entity.FaceEmbedding;
 import com.is2.detective_manager.model.entity.Person;
+import com.is2.detective_manager.model.entity.PersonStatus;
 import com.is2.detective_manager.repository.FaceEmbeddingRepository;
 import com.is2.detective_manager.repository.PersonRepository;
 import com.is2.detective_manager.service.PersonService;
@@ -35,7 +36,8 @@ public class PersonServiceImpl implements PersonService {
     log.info("Fetching all face embeddings for device {}", deviceId);
 
     return faceEmbeddingRepository
-        .findAllByPerson_DeviceIdOrderByCreatedAtAscIdAsc(deviceId)
+        .findAllByPerson_DeviceIdAndPerson_StatusOrderByCreatedAtAscIdAsc(
+            deviceId, PersonStatus.KNOWN)
         .stream()
         .map(personMapper::toResponseDto)
         .toList();
@@ -67,7 +69,6 @@ public class PersonServiceImpl implements PersonService {
 
     for (String image : request.getImages()) {
       String imageUrl = cloudinaryStorageClient.uploadEventImage(image, deviceId);
-
       createEmbedding(person, image, imageUrl);
     }
 
@@ -78,7 +79,6 @@ public class PersonServiceImpl implements PersonService {
   }
 
   private FaceEmbedding createEmbedding(Person person, String image, String imageUrl) {
-
     GeneratedFaceEmbeddingDto generated =
         mlServiceApiClient.generateFaceEmbedding(new MlFaceEmbeddingRequestDto(image));
 
@@ -150,7 +150,8 @@ public class PersonServiceImpl implements PersonService {
             .orElseThrow(
                 () -> new DetectiveException(ExceptionEnum.IMAGE_NOT_FOUND, "Image not found"));
 
-    if (!embedding.getPerson().getId().equals(personId)
+    if (embedding.getPerson() == null
+        || !embedding.getPerson().getId().equals(personId)
         || !embedding.getPerson().getDeviceId().equals(deviceId)) {
       throw new DetectiveException(ExceptionEnum.NOT_ALLOWED_IMAGE_ACTION, "Invalid access");
     }
