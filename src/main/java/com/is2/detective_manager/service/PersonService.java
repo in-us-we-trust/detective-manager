@@ -8,19 +8,19 @@ public interface PersonService {
 
   List<FaceEmbeddingResponseDto> getFaceEmbeddings(UUID deviceId);
 
-  List<FaceEmbeddingResponseDto> getFaceEmbeddings(UUID deviceId, Long personId);
+  List<FaceEmbeddingResponseDto> getFaceEmbeddings(UUID deviceId, UUID personId);
 
   PersonResponseDto createPerson(UUID deviceId, CreatePersonRequestDto request);
 
   List<PersonResponseDto> getPersons(UUID deviceId);
 
-  void deletePerson(UUID deviceId, Long personId);
+  void deletePerson(UUID deviceId, UUID personId);
 
-  PersonResponseDto getPerson(UUID deviceId, Long personId);
+  PersonResponseDto getPerson(UUID deviceId, UUID personId);
 
-  PersonResponseDto updatePerson(UUID deviceId, Long personId, UpdatePersonRequestDto request);
+  PersonResponseDto updatePerson(UUID deviceId, UUID personId, UpdatePersonRequestDto request);
 
-  void deleteImage(UUID deviceId, Long personId, Long imageId);
+  void deleteImage(UUID deviceId, UUID personId, Long imageId);
 
-  PersonResponseDto addImages(UUID deviceId, Long personId, AddPersonImagesRequestDto request);
+  PersonResponseDto addImages(UUID deviceId, UUID personId, AddPersonImagesRequestDto request);
 }

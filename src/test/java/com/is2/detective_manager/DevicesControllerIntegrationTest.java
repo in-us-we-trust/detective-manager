@@ -22,6 +22,7 @@ import com.is2.detective_manager.model.dto.GeneratedFaceEmbeddingDto;
 import com.is2.detective_manager.repository.DeviceRepository;
 import com.is2.detective_manager.repository.FaceEmbeddingRepository;
 import com.is2.detective_manager.repository.PersonRepository;
+import com.jayway.jsonpath.JsonPath;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -467,7 +468,7 @@ public class DevicesControllerIntegrationTest {
                 .closestMatch(
                     FaceRecognitionClosestMatchDto.builder()
                         .embeddingId(1L)
-                        .personId(1L)
+                        .personId(UUID.fromString("00000000-0000-0000-0000-000000000001"))
                         .personName("Mateo")
                         .build())
                 .modelName("ArcFace")
@@ -620,11 +621,11 @@ public class DevicesControllerIntegrationTest {
         .andExpect(status().isCreated());
   }
 
-  private Long createFaceEmbedding(String personName) throws Exception {
+  private String createFaceEmbedding(String personName) throws Exception {
     return createFaceEmbedding(DEVICE_ID, personName);
   }
 
-  private Long createFaceEmbedding(String deviceId, String personName) throws Exception {
+  private String createFaceEmbedding(String deviceId, String personName) throws Exception {
     String response =
         mockMvc
             .perform(
@@ -643,6 +644,6 @@ public class DevicesControllerIntegrationTest {
             .getResponse()
             .getContentAsString();
 
-    return ((Number) com.jayway.jsonpath.JsonPath.read(response, "$.data.id")).longValue();
+    return (JsonPath.read(response, "$.data.id"));
   }
 }

@@ -43,7 +43,7 @@ public class PersonServiceImpl implements PersonService {
 
   @Override
   @Transactional(readOnly = true)
-  public List<FaceEmbeddingResponseDto> getFaceEmbeddings(UUID deviceId, Long personId) {
+  public List<FaceEmbeddingResponseDto> getFaceEmbeddings(UUID deviceId, UUID personId) {
     log.info("Fetching face embeddings for device {} and person {}", deviceId, personId);
 
     return faceEmbeddingRepository
@@ -101,7 +101,7 @@ public class PersonServiceImpl implements PersonService {
 
   @Override
   @Transactional
-  public void deletePerson(UUID deviceId, Long personId) {
+  public void deletePerson(UUID deviceId, UUID personId) {
     log.info("Deleting person {} for device {}", personId, deviceId);
     Person person = getPersonEntity(deviceId, personId);
 
@@ -111,13 +111,13 @@ public class PersonServiceImpl implements PersonService {
   }
 
   @Override
-  public PersonResponseDto getPerson(UUID deviceId, Long personId) {
+  public PersonResponseDto getPerson(UUID deviceId, UUID personId) {
     log.info("Fetching person {} for device {}", personId, deviceId);
     Person person = getPersonEntity(deviceId, personId);
     return toResponseWithImages(deviceId, person);
   }
 
-  private Person getPersonEntity(UUID deviceId, Long personId) {
+  private Person getPersonEntity(UUID deviceId, UUID personId) {
     return personRepository
         .findByDeviceIdAndId(deviceId, personId)
         .orElseThrow(
@@ -127,7 +127,7 @@ public class PersonServiceImpl implements PersonService {
   @Override
   @Transactional
   public PersonResponseDto updatePerson(
-      UUID deviceId, Long personId, UpdatePersonRequestDto request) {
+      UUID deviceId, UUID personId, UpdatePersonRequestDto request) {
 
     log.info("Updating person {} for device {}", personId, deviceId);
 
@@ -142,7 +142,7 @@ public class PersonServiceImpl implements PersonService {
 
   @Override
   @Transactional
-  public void deleteImage(UUID deviceId, Long personId, Long imageId) {
+  public void deleteImage(UUID deviceId, UUID personId, Long imageId) {
 
     FaceEmbedding embedding =
         faceEmbeddingRepository
@@ -160,7 +160,7 @@ public class PersonServiceImpl implements PersonService {
 
   @Override
   public PersonResponseDto addImages(
-      UUID deviceId, Long personId, AddPersonImagesRequestDto request) {
+      UUID deviceId, UUID personId, AddPersonImagesRequestDto request) {
     log.info(
         "Adding {} images to person {} for device {}",
         request.getImages().size(),

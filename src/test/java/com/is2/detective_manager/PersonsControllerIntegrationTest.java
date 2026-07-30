@@ -165,7 +165,7 @@ class PersonsControllerIntegrationTest {
   @Test
   void getPerson_existingPerson_returnsOk() throws Exception {
     mockValidEmbedding();
-    Long personId = createPerson(DEVICE_ID, "Mateo");
+    String personId = createPerson(DEVICE_ID, "Mateo");
 
     mockMvc
         .perform(
@@ -184,7 +184,10 @@ class PersonsControllerIntegrationTest {
   void getPerson_personNotFound_returnsNotFound() throws Exception {
     mockMvc
         .perform(
-            get("/api/detective-manager/v1/devices/{deviceId}/persons/{personId}", DEVICE_ID, 999))
+            get(
+                "/api/detective-manager/v1/devices/{deviceId}/persons/{personId}",
+                DEVICE_ID,
+                "00000000-0000-0000-0000-000000000099"))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.title").value("Person not found."));
   }
@@ -192,7 +195,7 @@ class PersonsControllerIntegrationTest {
   @Test
   void updatePerson_validRequest_returnsUpdatedPerson() throws Exception {
     mockValidEmbedding();
-    Long personId = createPerson(DEVICE_ID, "Mateo");
+    String personId = createPerson(DEVICE_ID, "Mateo");
 
     mockMvc
         .perform(
@@ -219,7 +222,10 @@ class PersonsControllerIntegrationTest {
   void updatePerson_personNotFound_returnsNotFound() throws Exception {
     mockMvc
         .perform(
-            patch("/api/detective-manager/v1/devices/{deviceId}/persons/{personId}", DEVICE_ID, 999)
+            patch(
+                    "/api/detective-manager/v1/devices/{deviceId}/persons/{personId}",
+                    DEVICE_ID,
+                    "00000000-0000-0000-0000-000000000099")
                 .contentType("application/json")
                 .content(
                     """
@@ -234,7 +240,7 @@ class PersonsControllerIntegrationTest {
   @Test
   void deletePerson_existingPerson_returnsNoContent() throws Exception {
     mockValidEmbedding();
-    Long personId = createPerson(DEVICE_ID, "Mateo");
+    String personId = createPerson(DEVICE_ID, "Mateo");
 
     mockMvc
         .perform(
@@ -253,7 +259,9 @@ class PersonsControllerIntegrationTest {
     mockMvc
         .perform(
             delete(
-                "/api/detective-manager/v1/devices/{deviceId}/persons/{personId}", DEVICE_ID, 999))
+                "/api/detective-manager/v1/devices/{deviceId}/persons/{personId}",
+                DEVICE_ID,
+                "00000000-0000-0000-0000-000000000099"))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.title").value("Person not found."));
   }
@@ -261,7 +269,7 @@ class PersonsControllerIntegrationTest {
   @Test
   void addImages_validRequest_returnsUpdatedPerson() throws Exception {
     mockValidEmbedding();
-    Long personId = createPerson(DEVICE_ID, "Mateo");
+    String personId = createPerson(DEVICE_ID, "Mateo");
 
     mockMvc
         .perform(
@@ -287,7 +295,7 @@ class PersonsControllerIntegrationTest {
   @Test
   void addImages_invalidEmbedding_returnsBadGateway() throws Exception {
     mockValidEmbedding();
-    Long personId = createPerson(DEVICE_ID, "Mateo");
+    String personId = createPerson(DEVICE_ID, "Mateo");
 
     when(mlServiceApiClient.generateFaceEmbedding(any()))
         .thenReturn(new GeneratedFaceEmbeddingDto(List.of(), "ArcFace", "retinaface"));
@@ -314,12 +322,12 @@ class PersonsControllerIntegrationTest {
   @Test
   void deleteImage_existingImage_returnsNoContent() throws Exception {
     mockValidEmbedding();
-    Long personId = createPerson(DEVICE_ID, "Mateo");
+    String personId = createPerson(DEVICE_ID, "Mateo");
     addImages(DEVICE_ID, personId);
 
     var embeddings =
         faceEmbeddingRepository.findAllByPerson_DeviceIdAndPerson_IdOrderByCreatedAtAsc(
-            UUID.fromString(DEVICE_ID), personId);
+            UUID.fromString(DEVICE_ID), UUID.fromString(personId));
     Long imageId = embeddings.get(0).getId();
 
     mockMvc
@@ -337,7 +345,7 @@ class PersonsControllerIntegrationTest {
   @Test
   void deleteImage_imageNotFound_returnsNotFound() throws Exception {
     mockValidEmbedding();
-    Long personId = createPerson(DEVICE_ID, "Mateo");
+    String personId = createPerson(DEVICE_ID, "Mateo");
 
     mockMvc
         .perform(
@@ -353,12 +361,12 @@ class PersonsControllerIntegrationTest {
   @Test
   void deleteImage_imageBelongsToAnotherPerson_returnsForbidden() throws Exception {
     mockValidEmbedding();
-    Long personId1 = createPerson(DEVICE_ID, "Mateo");
-    Long personId2 = createPerson(DEVICE_ID, "Juan");
+    String personId1 = createPerson(DEVICE_ID, "Mateo");
+    String personId2 = createPerson(DEVICE_ID, "Juan");
 
     var embeddings =
         faceEmbeddingRepository.findAllByPerson_DeviceIdAndPerson_IdOrderByCreatedAtAsc(
-            UUID.fromString(DEVICE_ID), personId1);
+            UUID.fromString(DEVICE_ID), UUID.fromString(personId1));
     Long imageId = embeddings.get(0).getId();
 
     mockMvc
@@ -376,7 +384,7 @@ class PersonsControllerIntegrationTest {
   void createFaceEmbedding_samePerson_reusesExistingPerson() throws Exception {
     mockValidEmbedding();
 
-    Long firstPersonId = createPerson(DEVICE_ID, "Mateo");
+    String firstPersonId = createPerson(DEVICE_ID, "Mateo");
 
     mockMvc
         .perform(get("/api/detective-manager/v1/devices/{deviceId}/persons", DEVICE_ID))
@@ -390,7 +398,7 @@ class PersonsControllerIntegrationTest {
   @Test
   void getFaceEmbeddings_returnsEmbeddings() throws Exception {
     mockValidEmbedding();
-    Long personId = createPerson(DEVICE_ID, "Mateo");
+    String personId = createPerson(DEVICE_ID, "Mateo");
     addImages(DEVICE_ID, personId);
 
     mockMvc
@@ -414,11 +422,11 @@ class PersonsControllerIntegrationTest {
         .thenReturn(new GeneratedFaceEmbeddingDto(List.of(0.1, 0.2, 0.3), "ArcFace", "retinaface"));
   }
 
-  private Long createPerson() throws Exception {
+  private String createPerson() throws Exception {
     return createPerson(DEVICE_ID, "Mateo");
   }
 
-  private Long createPerson(String deviceId, String name) throws Exception {
+  private String createPerson(String deviceId, String name) throws Exception {
     String response =
         mockMvc
             .perform(
@@ -437,14 +445,14 @@ class PersonsControllerIntegrationTest {
             .getResponse()
             .getContentAsString();
 
-    return ((Number) com.jayway.jsonpath.JsonPath.read(response, "$.data.id")).longValue();
+    return com.jayway.jsonpath.JsonPath.read(response, "$.data.id");
   }
 
-  private void addImages(Long personId) throws Exception {
+  private void addImages(String personId) throws Exception {
     addImages(DEVICE_ID, personId);
   }
 
-  private void addImages(String deviceId, Long personId) throws Exception {
+  private void addImages(String deviceId, String personId) throws Exception {
     mockMvc
         .perform(
             post(
