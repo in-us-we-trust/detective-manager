@@ -11,7 +11,7 @@ public interface FaceEmbeddingRepository extends JpaRepository<FaceEmbedding, Lo
   List<FaceEmbedding> findAllByPerson_DeviceIdOrderByCreatedAtAscIdAsc(UUID deviceId);
 
   List<FaceEmbedding> findAllByPerson_DeviceIdAndPerson_IdOrderByCreatedAtAsc(
-      UUID deviceId, Long personId);
+      UUID deviceId, UUID personId);
 
   void deleteAllByPerson(Person person);
 }

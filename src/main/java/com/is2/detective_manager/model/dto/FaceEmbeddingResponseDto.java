@@ -13,7 +13,7 @@ public class FaceEmbeddingResponseDto {
 
   private Long id;
   private UUID deviceId;
-  private Long personId;
+  private UUID personId;
   private String personName;
   private List<Double> embedding;
   private String modelName;

@@ -103,7 +103,7 @@ public class PersonsController {
       })
   @GetMapping("/{personId}")
   public ResponseEntity<StandardResponse<PersonResponseDto>> getPerson(
-      @PathVariable UUID deviceId, @PathVariable Long personId) {
+      @PathVariable UUID deviceId, @PathVariable UUID personId) {
 
     return ResponseEntity.ok(StandardResponse.of(personService.getPerson(deviceId, personId)));
   }
@@ -133,7 +133,7 @@ public class PersonsController {
   @PatchMapping("/{personId}")
   public ResponseEntity<StandardResponse<PersonResponseDto>> updatePerson(
       @PathVariable UUID deviceId,
-      @PathVariable Long personId,
+      @PathVariable UUID personId,
       @Valid @RequestBody UpdatePersonRequestDto request) {
 
     var response = personService.updatePerson(deviceId, personId, request);
@@ -148,7 +148,7 @@ public class PersonsController {
   })
   @PostMapping("/{personId}/images")
   public ResponseEntity<StandardResponse<PersonResponseDto>> addImages(
-      @PathVariable Long personId,
+      @PathVariable UUID personId,
       @PathVariable UUID deviceId,
       @Valid @RequestBody AddPersonImagesRequestDto request) {
 
@@ -163,7 +163,7 @@ public class PersonsController {
   })
   @DeleteMapping("/{personId}/images/{imageId}")
   public ResponseEntity<Void> deleteImage(
-      @PathVariable Long personId, @PathVariable Long imageId, @PathVariable UUID deviceId) {
+      @PathVariable UUID personId, @PathVariable Long imageId, @PathVariable UUID deviceId) {
 
     personService.deleteImage(deviceId, personId, imageId);
     return ResponseEntity.noContent().build();
@@ -186,7 +186,7 @@ public class PersonsController {
       })
   @DeleteMapping("/{personId}")
   public ResponseEntity<Void> deletePerson(
-      @PathVariable UUID deviceId, @PathVariable Long personId) {
+      @PathVariable UUID deviceId, @PathVariable UUID personId) {
 
     personService.deletePerson(deviceId, personId);
     return ResponseEntity.noContent().build();
@@ -215,7 +215,7 @@ public class PersonsController {
       })
   @GetMapping("/{personId}/face-embeddings")
   public ResponseEntity<StandardResponse<List<FaceEmbeddingResponseDto>>> getFaceEmbeddings(
-      @PathVariable UUID deviceId, @PathVariable Long personId) {
+      @PathVariable UUID deviceId, @PathVariable UUID personId) {
 
     return ResponseEntity.ok(
         StandardResponse.of(personService.getFaceEmbeddings(deviceId, personId)));

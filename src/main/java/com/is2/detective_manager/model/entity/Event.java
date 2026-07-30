@@ -45,7 +45,7 @@ public class Event {
   private Long closestEmbeddingId;
 
   @Column(name = "closest_person_id")
-  private Long closestPersonId;
+  private UUID closestPersonId;
 
   @Column(name = "closest_person_name")
   private String closestPersonName;

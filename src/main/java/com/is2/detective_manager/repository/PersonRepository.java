@@ -12,5 +12,5 @@ public interface PersonRepository extends JpaRepository<Person, Long> {
 
   List<Person> findAllByDeviceIdOrderByCreatedAtAscIdAsc(UUID deviceId);
 
-  Optional<Person> findByDeviceIdAndId(UUID deviceId, Long personId);
+  Optional<Person> findByDeviceIdAndId(UUID deviceId, UUID personId);
 }
