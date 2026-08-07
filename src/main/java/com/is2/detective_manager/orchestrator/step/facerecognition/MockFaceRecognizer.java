@@ -13,6 +13,6 @@ public class MockFaceRecognizer implements FaceRecognizer {
   @Override
   public boolean isKnown(String imageBase64) {
     log.info("[mock] Reconocimiento facial simulado -> known=true");
-    return true;
+    return false; // Simulamos que la cara es desconocida para probar la señal UNKNOWN_PERSON.
   }
 }

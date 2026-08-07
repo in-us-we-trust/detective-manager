@@ -5,6 +5,7 @@ import com.is2.detective_manager.model.entity.TrackStatus;
 import com.is2.detective_manager.orchestrator.AnalysisStep;
 import com.is2.detective_manager.orchestrator.StepContext;
 import com.is2.detective_manager.orchestrator.StepResult;
+import com.is2.detective_manager.orchestrator.evaluator.Signal;
 import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -29,10 +30,15 @@ public class FaceRecognitionStep implements AnalysisStep {
   public StepResult execute(StepContext context) {
     boolean known = faceRecognizer.isKnown(context.getPayload());
 
-    return StepResult.builder()
-        .nextStatus(TrackStatus.FACE_RECOGNIZED)
-        .data(Map.of("faceKnown", known))
-        .shouldNotify(false)
-        .build();
+    StepResult.StepResultBuilder result =
+        StepResult.builder()
+            .nextStatus(TrackStatus.FACE_RECOGNIZED)
+            .data(Map.of("faceKnown", known))
+            .shouldNotify(false);
+
+    // Emitimos la señal según si la cara es conocida o no.
+    result.signal(known ? Signal.KNOWN_PERSON : Signal.UNKNOWN_PERSON);
+
+    return result.build();
   }
 }

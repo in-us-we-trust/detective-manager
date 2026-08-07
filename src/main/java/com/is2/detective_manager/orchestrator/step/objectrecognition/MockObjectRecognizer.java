@@ -13,7 +13,7 @@ public class MockObjectRecognizer implements ObjectRecognizer {
 
   @Override
   public List<String> detectObjects(String imageBase64) {
-    log.info("[mock] Detección de objetos simulada -> [phone, backpack]");
-    return List.of("phone", "backpack");
+    log.info("[mock] Detección de objetos simulada -> [phone, weapon]");
+    return List.of("phone", "weapon");
   }
 }

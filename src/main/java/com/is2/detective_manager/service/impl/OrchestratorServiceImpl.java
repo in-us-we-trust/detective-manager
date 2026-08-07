@@ -8,9 +8,14 @@ import com.is2.detective_manager.orchestrator.AnalysisStep;
 import com.is2.detective_manager.orchestrator.StepContext;
 import com.is2.detective_manager.orchestrator.StepResult;
 import com.is2.detective_manager.orchestrator.Verdict;
+import com.is2.detective_manager.orchestrator.evaluator.Assessment;
 import com.is2.detective_manager.orchestrator.evaluator.DangerEvaluator;
+import com.is2.detective_manager.orchestrator.evaluator.Severity;
+import com.is2.detective_manager.orchestrator.evaluator.Signal;
 import com.is2.detective_manager.service.OrchestratorService;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -33,13 +38,15 @@ public class OrchestratorServiceImpl implements OrchestratorService {
     // (A futuro: esto sale de los chunks acumulados del track.)
     Set<ChunkType> availableInputs = Set.of(ChunkType.IMAGE);
 
-    // Data que se va acumulando a medida que corren los steps.
-    Map<String, Object> accumulated = new HashMap<>();
+    Map<String, Object> accumulatedData = new HashMap<>();
+    List<Signal> accumulatedSignals = new ArrayList<>();
 
-    Verdict verdict = Verdict.CONTINUE;
+    // "Solo cuando cambia": guardamos un assessment únicamente al cambiar la severity.
+    List<Assessment> changes = new ArrayList<>();
+    Severity lastSeverity = null;
+    Assessment last = null;
 
     for (AnalysisStep step : pipeline.steps()) {
-      // Saltear los steps cuyo input no llegó (respetando el orden de los que sí corren).
       if (!step.supports(availableInputs)) {
         log.info("Step {} saltado (input no disponible)", step.getClass().getSimpleName());
         continue;
@@ -48,23 +55,39 @@ public class OrchestratorServiceImpl implements OrchestratorService {
       StepContext context =
           StepContext.builder()
               .trackId(request.getTrackId())
-              .chunkType(ChunkType.IMAGE) // por ahora fijo; a futuro depende del chunk
+              .chunkType(ChunkType.IMAGE)
               .payload(request.getImage())
-              .accumulated(Map.copyOf(accumulated))
+              .accumulated(Map.copyOf(accumulatedData))
               .build();
 
       StepResult result = step.execute(context);
-      log.info("Step {} ejecutado -> {}", step.getClass().getSimpleName(), result.getData());
+      log.info(
+          "Step {} ejecutado -> data={}, signals={}",
+          step.getClass().getSimpleName(),
+          result.getData(),
+          result.getSignals());
 
-      // El orquestador acumula el aporte del step.
       if (result.getData() != null) {
-        accumulated.putAll(result.getData());
+        accumulatedData.putAll(result.getData());
+      }
+      accumulatedSignals.addAll(result.getSignals());
+
+      // El orquestador MANDA: evalúa con todas las señales acumuladas.
+      Assessment assessment = dangerEvaluator.evaluate(accumulatedSignals);
+      last = assessment;
+
+      // Emitimos (guardamos) solo si la severity cambió respecto de la última.
+      if (assessment.getSeverity() != lastSeverity) {
+        changes.add(assessment);
+        lastSeverity = assessment.getSeverity();
+        log.info(
+            "Cambio de severity -> {} (msg='{}')",
+            assessment.getSeverity(),
+            assessment.getMessage());
       }
 
-      // El orquestador MANDA: consulta la lógica de peligro tras cada step.
-      verdict = dangerEvaluator.evaluate(accumulated);
-      if (verdict != Verdict.CONTINUE) {
-        log.info("Corte temprano con verdict={} tras step {}", verdict, step.getClass().getSimpleName());
+      if (assessment.getVerdict() != Verdict.CONTINUE) {
+        log.info("Corte temprano: {}", assessment.getVerdict());
         break;
       }
     }
@@ -73,7 +96,15 @@ public class OrchestratorServiceImpl implements OrchestratorService {
         .trackId(request.getTrackId())
         .chunkType(ChunkType.IMAGE.name())
         .payloadBytes(request.getImage().length())
-        .message("Pipeline finalizado. verdict=" + verdict + ", data=" + accumulated)
+        .message(
+            "verdict="
+                + (last != null ? last.getVerdict() : "N/A")
+                + ", severity="
+                + (last != null ? last.getSeverity() : "N/A")
+                + ", message="
+                + (last != null ? last.getMessage() : "N/A")
+                + ", cambios="
+                + changes.size())
         .build();
   }
 }
