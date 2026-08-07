@@ -1,6 +1,7 @@
 package com.is2.detective_manager.model.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -8,7 +9,7 @@ import lombok.Data;
 @Data
 @Builder
 @AllArgsConstructor
-@Schema(description = "Confirmación de que el chunk fue recibido.")
+@Schema(description = "Resultado del análisis del chunk recibido.")
 public class EventChunkResponseDto {
 
   @Schema(description = "El trackId recibido.")
@@ -17,9 +18,12 @@ public class EventChunkResponseDto {
   @Schema(description = "Tipo de chunk recibido.", example = "IMAGE")
   private String chunkType;
 
-  @Schema(description = "Tamaño del payload recibido, en bytes.")
-  private int payloadBytes;
+  @Schema(description = "Veredicto final del pipeline.", example = "STOP_DANGER")
+  private String finalVerdict;
 
-  @Schema(description = "Mensaje de estado.")
-  private String message;
+  @Schema(description = "Severity final alcanzada.", example = "PELIGROSO")
+  private String finalSeverity;
+
+  @Schema(description = "Lista de assessments emitidos (solo los cambios de severity).")
+  private List<AssessmentDto> assessments;
 }

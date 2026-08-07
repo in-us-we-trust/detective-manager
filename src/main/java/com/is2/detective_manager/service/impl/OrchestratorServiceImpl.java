@@ -1,7 +1,9 @@
 package com.is2.detective_manager.service.impl;
 
 import com.is2.detective_manager.model.dto.EventChunkRequestDto;
+import com.is2.detective_manager.model.dto.AssessmentDto;
 import com.is2.detective_manager.model.dto.EventChunkResponseDto;
+import com.is2.detective_manager.mapper.AssessmentMapper;
 import com.is2.detective_manager.model.entity.ChunkType;
 import com.is2.detective_manager.orchestrator.AnalysisPipeline;
 import com.is2.detective_manager.orchestrator.AnalysisStep;
@@ -18,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -92,19 +95,15 @@ public class OrchestratorServiceImpl implements OrchestratorService {
       }
     }
 
+    List<AssessmentDto> assessmentDtos =
+        changes.stream().map(AssessmentMapper::toDto).collect(Collectors.toList());
+
     return EventChunkResponseDto.builder()
         .trackId(request.getTrackId())
         .chunkType(ChunkType.IMAGE.name())
-        .payloadBytes(request.getImage().length())
-        .message(
-            "verdict="
-                + (last != null ? last.getVerdict() : "N/A")
-                + ", severity="
-                + (last != null ? last.getSeverity() : "N/A")
-                + ", message="
-                + (last != null ? last.getMessage() : "N/A")
-                + ", cambios="
-                + changes.size())
+        .finalVerdict(last != null ? last.getVerdict().name() : null)
+        .finalSeverity(last != null ? last.getSeverity().name() : null)
+        .assessments(assessmentDtos)
         .build();
   }
 }
