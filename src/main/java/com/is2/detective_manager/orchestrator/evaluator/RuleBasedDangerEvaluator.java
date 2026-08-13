@@ -26,7 +26,7 @@ public class RuleBasedDangerEvaluator implements DangerEvaluator {
               .message("La persona está armada")
               .build(),
           Rule.builder()
-              .requires(EnumSet.of(Signal.THREAT_KEYWORD))
+              .requires(EnumSet.of(Signal.THREAT))
               .severity(Severity.PELIGROSO)
               .verdict(Verdict.STOP_DANGER)
               .message("Amenaza verbal detectada")
@@ -36,6 +36,12 @@ public class RuleBasedDangerEvaluator implements DangerEvaluator {
               .severity(Severity.SOSPECHOSO)
               .verdict(Verdict.CONTINUE)
               .message("Persona desconocida con la cara tapada")
+              .build(),
+          Rule.builder()
+              .requires(EnumSet.of(Signal.AUTHORITY, Signal.URGENCY))
+              .severity(Severity.SOSPECHOSO)
+              .verdict(Verdict.CONTINUE)
+              .message("Posible manipulación: autoridad + urgencia")
               .build(),
           Rule.builder()
               .requires(EnumSet.of(Signal.UNKNOWN_PERSON))

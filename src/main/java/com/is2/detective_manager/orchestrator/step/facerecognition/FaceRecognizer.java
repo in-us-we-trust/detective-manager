@@ -6,5 +6,5 @@ package com.is2.detective_manager.orchestrator.step.facerecognition;
  */
 public interface FaceRecognizer {
 
-  boolean isKnown(String imageBase64);
+  boolean isKnown(byte[] image);
 }

@@ -12,8 +12,8 @@ import org.springframework.stereotype.Component;
 public class MockObjectRecognizer implements ObjectRecognizer {
 
   @Override
-  public List<String> detectObjects(String imageBase64) {
-    log.info("[mock] Detección de objetos simulada -> [phone, weapon]");
-    return List.of("phone", "weapon");
+  public List<String> detectObjects(byte[] image) {
+    log.info("[mock] Detección de objetos simulada -> [phone]");
+    return List.of("phone");
   }
 }

@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 public class RealObjectRecognizer implements ObjectRecognizer {
 
   @Override
-  public List<String> detectObjects(String imageBase64) {
+  public List<String> detectObjects(byte[] image) {
     log.info("[real] Detección de objetos contra el ml-service");
     throw new UnsupportedOperationException("RealObjectRecognizer todavía no implementado");
   }

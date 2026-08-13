@@ -8,5 +8,5 @@ import java.util.List;
  */
 public interface ObjectRecognizer {
 
-  List<String> detectObjects(String imageBase64);
+  List<String> detectObjects(byte[] image);
 }

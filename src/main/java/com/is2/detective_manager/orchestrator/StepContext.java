@@ -11,7 +11,7 @@ import lombok.Value;
 public class StepContext {
 
   String trackId;
-  ChunkType chunkType;
-  String payload; // imagen/audio en base64
-  Map<String, Object> accumulated; // data de steps anteriores (tags, transcript, etc.)
+  ChunkType mediaType; // tipo del chunk: IMAGE / AUDIO / VIDEO
+  byte[] payload; // contenido binario crudo (imagen/audio/video)
+  Map<String, Object> accumulated; // data de steps anteriores
 }

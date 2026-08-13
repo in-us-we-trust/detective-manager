@@ -2,7 +2,6 @@ package com.is2.detective_manager.service.impl;
 
 import com.is2.detective_manager.mapper.AssessmentMapper;
 import com.is2.detective_manager.model.dto.AssessmentDto;
-import com.is2.detective_manager.model.dto.EventChunkRequestDto;
 import com.is2.detective_manager.model.dto.EventChunkResponseDto;
 import com.is2.detective_manager.model.entity.ChunkType;
 import com.is2.detective_manager.model.entity.Track;
@@ -33,20 +32,21 @@ public class OrchestratorServiceImpl implements OrchestratorService {
   private final TrackPersistenceService trackPersistenceService;
 
   @Override
-  public EventChunkResponseDto handleEvent(EventChunkRequestDto request) {
-    UUID trackId = UUID.fromString(request.getTrackId());
-    UUID deviceId = UUID.fromString(request.getDeviceId());
-    log.info("Procesando chunk para trackId={} device={}", trackId, deviceId);
+  public EventChunkResponseDto handleEvent(
+      String trackIdStr, String deviceIdStr, ChunkType mediaType, byte[] payload) {
+    UUID trackId = UUID.fromString(trackIdStr);
+    UUID deviceId = UUID.fromString(deviceIdStr);
+    log.info("Procesando chunk para trackId={} device={} mediaType={}", trackId, deviceId, mediaType);
 
     // 1) Buscar/crear el track y cargar su estado acumulado.
     Track track = trackPersistenceService.findOrCreateTrack(trackId, deviceId);
 
     // 2) Determinar el próximo step según hasta dónde llegó el track.
-    Optional<AnalysisStep> nextStepOpt = pipeline.nextStep(track.getCurrentStep());
+    Optional<AnalysisStep> nextStepOpt = pipeline.nextStep(track.getCurrentStep(), mediaType);
 
     if (nextStepOpt.isEmpty()) {
       log.info("Track {} ya completó todos los steps. Nada que hacer.", trackId);
-      return buildResponse(request, track, List.of());
+      return buildResponse(trackIdStr, mediaType, track, List.of());
     }
 
     AnalysisStep step = nextStepOpt.get();
@@ -59,9 +59,9 @@ public class OrchestratorServiceImpl implements OrchestratorService {
     // 4) Ejecutar el step (midiendo cuánto tarda).
     StepContext context =
         StepContext.builder()
-            .trackId(request.getTrackId())
-            .chunkType(ChunkType.IMAGE)
-            .payload(request.getImage())
+            .trackId(trackIdStr)
+            .mediaType(mediaType)
+            .payload(payload)
             .accumulated(Map.of())
             .build();
 
@@ -82,17 +82,17 @@ public class OrchestratorServiceImpl implements OrchestratorService {
     trackPersistenceService.saveStepResult(
         track, stepName, result.getSignals(), accumulatedSignals, assessment, durationMs);
 
-    return buildResponse(request, track, List.of(assessment));
+    return buildResponse(trackIdStr, mediaType, track, List.of(assessment));
   }
 
   private EventChunkResponseDto buildResponse(
-      EventChunkRequestDto request, Track track, List<Assessment> assessments) {
+      String trackIdStr, ChunkType mediaType, Track track, List<Assessment> assessments) {
 
     List<AssessmentDto> dtos = assessments.stream().map(AssessmentMapper::toDto).toList();
 
     return EventChunkResponseDto.builder()
-        .trackId(request.getTrackId())
-        .chunkType(ChunkType.IMAGE.name())
+        .trackId(trackIdStr)
+        .chunkType(mediaType.name())
         .finalVerdict(track.getFinalVerdict() != null ? track.getFinalVerdict().name() : null)
         .finalSeverity(track.getFinalSeverity() != null ? track.getFinalSeverity().name() : null)
         .assessments(dtos)

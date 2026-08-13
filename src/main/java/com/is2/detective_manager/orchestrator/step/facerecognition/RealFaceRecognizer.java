@@ -16,7 +16,7 @@ public class RealFaceRecognizer implements FaceRecognizer {
   // private final MlServiceApiClient mlServiceApiClient;
 
   @Override
-  public boolean isKnown(String imageBase64) {
+  public boolean isKnown(byte[] image) {
     log.info("[real] Reconociendo rostro contra el ml-service");
     // TODO: construir el request con los embeddings del device y llamar a recognizeFace(...)
     throw new UnsupportedOperationException("RealFaceRecognizer todavía no implementado");

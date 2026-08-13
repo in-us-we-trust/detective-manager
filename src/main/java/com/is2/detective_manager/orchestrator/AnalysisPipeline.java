@@ -1,15 +1,19 @@
 package com.is2.detective_manager.orchestrator;
 
+import com.is2.detective_manager.model.entity.ChunkType;
+import com.is2.detective_manager.orchestrator.step.conversationanalysis.ConversationAnalysisStep;
 import com.is2.detective_manager.orchestrator.step.facerecognition.FaceRecognitionStep;
 import com.is2.detective_manager.orchestrator.step.objectrecognition.ObjectRecognitionStep;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
  * Define el ORDEN canónico de los steps: imagen -> audio -> video.
- * El orquestador avanza de a un step por request, usando nextStep().
+ * El orquestador avanza de a un step por request, usando nextStep(): el próximo
+ * step DESPUÉS del último ejecutado que además soporte el mediaType que llegó.
  */
 @Component
 @RequiredArgsConstructor
@@ -18,36 +22,42 @@ public class AnalysisPipeline {
   // --- IMAGEN ---
   private final FaceRecognitionStep faceRecognitionStep;
   private final ObjectRecognitionStep objectRecognitionStep;
-  // --- AUDIO (a futuro) ---
-  // --- VIDEO (a futuro) ---
+  // --- AUDIO ---
+  private final ConversationAnalysisStep conversationAnalysisStep;
 
-  /** Los steps en el orden en que deben evaluarse. */
   public List<AnalysisStep> steps() {
-    return List.of(faceRecognitionStep, objectRecognitionStep);
+    return List.of(faceRecognitionStep, objectRecognitionStep, conversationAnalysisStep);
   }
 
   /**
-   * Devuelve el step que sigue después del ejecutado por último.
-   * @param lastStepName nombre del último step corrido (null/blank si el track recién arranca)
-   * @return el próximo step, o vacío si ya no queda ninguno.
+   * Próximo step a ejecutar: el primero, después del último ejecutado, que soporte
+   * el mediaType recibido. Así una imagen solo dispara steps de imagen, un audio
+   * solo los de audio, respetando el orden.
+   *
+   * @param lastStepName último step corrido para este track (null si recién arranca)
+   * @param mediaType tipo del chunk que llegó en este request
    */
-  public Optional<AnalysisStep> nextStep(String lastStepName) {
+  public Optional<AnalysisStep> nextStep(String lastStepName, ChunkType mediaType) {
     List<AnalysisStep> steps = steps();
+    Set<ChunkType> available = Set.of(mediaType);
 
-    // Si no hubo step previo, el próximo es el primero.
-    if (lastStepName == null || lastStepName.isBlank()) {
-      return steps.isEmpty() ? Optional.empty() : Optional.of(steps.get(0));
-    }
-
-    // Buscamos el índice del último ejecutado y devolvemos el siguiente.
-    for (int i = 0; i < steps.size(); i++) {
-      if (steps.get(i).getClass().getSimpleName().equals(lastStepName)) {
-        int nextIndex = i + 1;
-        return nextIndex < steps.size() ? Optional.of(steps.get(nextIndex)) : Optional.empty();
+    // índice desde donde buscar: justo después del último ejecutado.
+    int startIndex = 0;
+    if (lastStepName != null && !lastStepName.isBlank()) {
+      for (int i = 0; i < steps.size(); i++) {
+        if (steps.get(i).getClass().getSimpleName().equals(lastStepName)) {
+          startIndex = i + 1;
+          break;
+        }
       }
     }
 
-    // El último step no está en la lista (raro): no avanzamos.
+    // el primero, de ahí en adelante, que soporte este mediaType.
+    for (int i = startIndex; i < steps.size(); i++) {
+      if (steps.get(i).supports(available)) {
+        return Optional.of(steps.get(i));
+      }
+    }
     return Optional.empty();
   }
 }
