@@ -1,26 +1,24 @@
 package com.is2.detective_manager.service.impl;
 
-import com.is2.detective_manager.model.dto.EventChunkRequestDto;
-import com.is2.detective_manager.model.dto.AssessmentDto;
-import com.is2.detective_manager.model.dto.EventChunkResponseDto;
 import com.is2.detective_manager.mapper.AssessmentMapper;
+import com.is2.detective_manager.model.dto.AssessmentDto;
+import com.is2.detective_manager.model.dto.EventChunkRequestDto;
+import com.is2.detective_manager.model.dto.EventChunkResponseDto;
 import com.is2.detective_manager.model.entity.ChunkType;
+import com.is2.detective_manager.model.entity.Track;
 import com.is2.detective_manager.orchestrator.AnalysisPipeline;
 import com.is2.detective_manager.orchestrator.AnalysisStep;
 import com.is2.detective_manager.orchestrator.StepContext;
 import com.is2.detective_manager.orchestrator.StepResult;
-import com.is2.detective_manager.orchestrator.Verdict;
 import com.is2.detective_manager.orchestrator.evaluator.Assessment;
 import com.is2.detective_manager.orchestrator.evaluator.DangerEvaluator;
-import com.is2.detective_manager.orchestrator.evaluator.Severity;
 import com.is2.detective_manager.orchestrator.evaluator.Signal;
 import com.is2.detective_manager.service.OrchestratorService;
-import java.util.ArrayList;
-import java.util.HashMap;
+import com.is2.detective_manager.service.TrackPersistenceService;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -32,78 +30,72 @@ public class OrchestratorServiceImpl implements OrchestratorService {
 
   private final AnalysisPipeline pipeline;
   private final DangerEvaluator dangerEvaluator;
+  private final TrackPersistenceService trackPersistenceService;
 
   @Override
   public EventChunkResponseDto handleEvent(EventChunkRequestDto request) {
-    log.info("Procesando evento para trackId={}", request.getTrackId());
+    UUID trackId = UUID.fromString(request.getTrackId());
+    UUID deviceId = UUID.fromString(request.getDeviceId());
+    log.info("Procesando chunk para trackId={} device={}", trackId, deviceId);
 
-    // Por ahora: un solo request con una foto -> el único input disponible es IMAGE.
-    // (A futuro: esto sale de los chunks acumulados del track.)
-    Set<ChunkType> availableInputs = Set.of(ChunkType.IMAGE);
+    // 1) Buscar/crear el track y cargar su estado acumulado.
+    Track track = trackPersistenceService.findOrCreateTrack(trackId, deviceId);
 
-    Map<String, Object> accumulatedData = new HashMap<>();
-    List<Signal> accumulatedSignals = new ArrayList<>();
+    // 2) Determinar el próximo step según hasta dónde llegó el track.
+    Optional<AnalysisStep> nextStepOpt = pipeline.nextStep(track.getCurrentStep());
 
-    // "Solo cuando cambia": guardamos un assessment únicamente al cambiar la severity.
-    List<Assessment> changes = new ArrayList<>();
-    Severity lastSeverity = null;
-    Assessment last = null;
-
-    for (AnalysisStep step : pipeline.steps()) {
-      if (!step.supports(availableInputs)) {
-        log.info("Step {} saltado (input no disponible)", step.getClass().getSimpleName());
-        continue;
-      }
-
-      StepContext context =
-          StepContext.builder()
-              .trackId(request.getTrackId())
-              .chunkType(ChunkType.IMAGE)
-              .payload(request.getImage())
-              .accumulated(Map.copyOf(accumulatedData))
-              .build();
-
-      StepResult result = step.execute(context);
-      log.info(
-          "Step {} ejecutado -> data={}, signals={}",
-          step.getClass().getSimpleName(),
-          result.getData(),
-          result.getSignals());
-
-      if (result.getData() != null) {
-        accumulatedData.putAll(result.getData());
-      }
-      accumulatedSignals.addAll(result.getSignals());
-
-      // El orquestador MANDA: evalúa con todas las señales acumuladas.
-      Assessment assessment = dangerEvaluator.evaluate(accumulatedSignals);
-      last = assessment;
-
-      // Emitimos (guardamos) solo si la severity cambió respecto de la última.
-      if (assessment.getSeverity() != lastSeverity) {
-        changes.add(assessment);
-        lastSeverity = assessment.getSeverity();
-        log.info(
-            "Cambio de severity -> {} (msg='{}')",
-            assessment.getSeverity(),
-            assessment.getMessage());
-      }
-
-      if (assessment.getVerdict() != Verdict.CONTINUE) {
-        log.info("Corte temprano: {}", assessment.getVerdict());
-        break;
-      }
+    if (nextStepOpt.isEmpty()) {
+      log.info("Track {} ya completó todos los steps. Nada que hacer.", trackId);
+      return buildResponse(request, track, List.of());
     }
 
-    List<AssessmentDto> assessmentDtos =
-        changes.stream().map(AssessmentMapper::toDto).collect(Collectors.toList());
+    AnalysisStep step = nextStepOpt.get();
+    String stepName = step.getClass().getSimpleName();
+
+    // 3) Reconstruir las señales acumuladas de steps anteriores (desde la DB).
+    List<Signal> accumulatedSignals = trackPersistenceService.readAccumulatedSignals(track);
+    log.info("Señales acumuladas previas: {}", accumulatedSignals);
+
+    // 4) Ejecutar el step (midiendo cuánto tarda).
+    StepContext context =
+        StepContext.builder()
+            .trackId(request.getTrackId())
+            .chunkType(ChunkType.IMAGE)
+            .payload(request.getImage())
+            .accumulated(Map.of())
+            .build();
+
+    long startedAt = System.currentTimeMillis();
+    StepResult result = step.execute(context);
+    long durationMs = System.currentTimeMillis() - startedAt;
+
+    log.info("Step {} ejecutado ({} ms) -> signals={}", stepName, durationMs, result.getSignals());
+
+    // 5) Acumular las nuevas señales sobre las previas.
+    accumulatedSignals.addAll(result.getSignals());
+
+    // 6) Evaluar con TODO lo acumulado.
+    Assessment assessment = dangerEvaluator.evaluate(accumulatedSignals);
+    log.info("Assessment -> severity={}, msg='{}'", assessment.getSeverity(), assessment.getMessage());
+
+    // 7) Persistir el resultado de este step + actualizar el track.
+    trackPersistenceService.saveStepResult(
+        track, stepName, result.getSignals(), accumulatedSignals, assessment, durationMs);
+
+    return buildResponse(request, track, List.of(assessment));
+  }
+
+  private EventChunkResponseDto buildResponse(
+      EventChunkRequestDto request, Track track, List<Assessment> assessments) {
+
+    List<AssessmentDto> dtos = assessments.stream().map(AssessmentMapper::toDto).toList();
 
     return EventChunkResponseDto.builder()
         .trackId(request.getTrackId())
         .chunkType(ChunkType.IMAGE.name())
-        .finalVerdict(last != null ? last.getVerdict().name() : null)
-        .finalSeverity(last != null ? last.getSeverity().name() : null)
-        .assessments(assessmentDtos)
+        .finalVerdict(track.getFinalVerdict() != null ? track.getFinalVerdict().name() : null)
+        .finalSeverity(track.getFinalSeverity() != null ? track.getFinalSeverity().name() : null)
+        .assessments(dtos)
         .build();
   }
 }

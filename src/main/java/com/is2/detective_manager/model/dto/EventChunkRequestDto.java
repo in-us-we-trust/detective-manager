@@ -15,6 +15,13 @@ public class EventChunkRequestDto {
       requiredMode = Schema.RequiredMode.REQUIRED)
   private String trackId;
 
+  @NotBlank(message = "deviceId is required")
+  @Schema(
+      description = "Identificador del timbre que envía el chunk.",
+      example = "a1b2c3d4-...",
+      requiredMode = Schema.RequiredMode.REQUIRED)
+  private String deviceId;
+
   @NotBlank(message = "image is required")
   @Schema(
       description = "Imagen en base64 asociada al evento.",
