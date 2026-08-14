@@ -28,7 +28,7 @@ public class FaceRecognitionStep implements AnalysisStep {
 
   @Override
   public StepResult execute(StepContext context) {
-    boolean known = faceRecognizer.isKnown(context.getPayload());
+    boolean known = faceRecognizer.isKnown(context.getPayload(), context.getDeviceId());
 
     StepResult.StepResultBuilder result =
         StepResult.builder()

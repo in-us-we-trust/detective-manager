@@ -3,8 +3,9 @@ package com.is2.detective_manager.controller;
 import com.is2.detective_manager.exception.ExceptionContent;
 import com.is2.detective_manager.model.dto.*;
 import com.is2.detective_manager.model.generic.StandardResponse;
+import com.is2.detective_manager.mapper.TrackMapper;
 import com.is2.detective_manager.service.DeviceService;
-import com.is2.detective_manager.service.EventService;
+import com.is2.detective_manager.service.TrackPersistenceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -22,12 +23,13 @@ import org.springframework.web.bind.annotation.*;
 public class DevicesController {
 
   private final DeviceService deviceService;
-  private final EventService eventService;
+  private final TrackPersistenceService trackPersistenceService;
 
   @Autowired
-  public DevicesController(DeviceService deviceService, EventService eventService) {
+  public DevicesController(
+      DeviceService deviceService, TrackPersistenceService trackPersistenceService) {
     this.deviceService = deviceService;
-    this.eventService = eventService;
+    this.trackPersistenceService = trackPersistenceService;
   }
 
   @Operation(
@@ -198,40 +200,11 @@ public class DevicesController {
   }
 
   @Operation(
-      summary = "Report a device event",
-      description = "Receives and processes a security event associated with a specific device")
+      summary = "Get device tracks",
+      description = "Returns all analyzed tracks (visits) associated with a specific device")
   @ApiResponses(
       value = {
-        @ApiResponse(responseCode = "201", description = "Event successfully processed"),
-        @ApiResponse(
-            responseCode = "400",
-            description = "Invalid request payload or invalid UUID format",
-            content =
-                @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = ExceptionContent.class))),
-        @ApiResponse(
-            responseCode = "502",
-            description = "Error communicating with an upstream service",
-            content =
-                @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = ExceptionContent.class)))
-      })
-  @PostMapping("/{deviceId}/events")
-  public ResponseEntity<StandardResponse<ReportEventResponseDto>> reportEvent(
-      @PathVariable UUID deviceId, @Valid @RequestBody ReportEventRequestDto request) {
-    var response = eventService.reportEvent(deviceId.toString(), request);
-
-    return ResponseEntity.status(201).body(StandardResponse.of(response));
-  }
-
-  @Operation(
-      summary = "Get device events",
-      description = "Returns all events associated with a specific device")
-  @ApiResponses(
-      value = {
-        @ApiResponse(responseCode = "200", description = "Events successfully retrieved"),
+        @ApiResponse(responseCode = "200", description = "Tracks successfully retrieved"),
         @ApiResponse(
             responseCode = "400",
             description = "Invalid device UUID format",
@@ -240,9 +213,13 @@ public class DevicesController {
                     mediaType = "application/json",
                     schema = @Schema(implementation = ExceptionContent.class)))
       })
-  @GetMapping("/{deviceId}/events")
-  public ResponseEntity<StandardResponse<List<EventResponseDto>>> getEvents(
+  @GetMapping("/{deviceId}/tracks")
+  public ResponseEntity<StandardResponse<List<TrackResponseDto>>> getTracks(
       @PathVariable UUID deviceId) {
-    return ResponseEntity.ok(StandardResponse.of(eventService.getEventsByDevice(deviceId)));
+    List<TrackResponseDto> tracks =
+        trackPersistenceService.findTracksByDevice(deviceId).stream()
+            .map(TrackMapper::toDto)
+            .toList();
+    return ResponseEntity.ok(StandardResponse.of(tracks));
   }
 }

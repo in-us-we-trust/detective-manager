@@ -37,4 +37,7 @@ public interface TrackPersistenceService {
    * (mayor severity). Vacío si el track no tiene ninguna imagen guardada.
    */
   Optional<String> findMostSevereImageUrl(UUID trackId);
+
+  /** Lista los tracks de un dispositivo. */
+  List<Track> findTracksByDevice(UUID deviceId);
 }

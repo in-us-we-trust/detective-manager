@@ -1,5 +1,6 @@
 package com.is2.detective_manager.orchestrator.step.facerecognition;
 
+import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
@@ -11,8 +12,8 @@ import org.springframework.stereotype.Component;
 public class MockFaceRecognizer implements FaceRecognizer {
 
   @Override
-  public boolean isKnown(byte[] image) {
-    log.info("[mock] Reconocimiento facial simulado -> known=true");
-    return false; // Simulamos que la cara es desconocida para probar la señal UNKNOWN_PERSON.
+  public boolean isKnown(byte[] image, UUID deviceId) {
+    log.info("[mock] Reconocimiento facial simulado -> known=false");
+    return false;
   }
 }

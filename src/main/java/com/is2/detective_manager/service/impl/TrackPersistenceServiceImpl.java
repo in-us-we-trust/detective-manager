@@ -100,6 +100,12 @@ public class TrackPersistenceServiceImpl implements TrackPersistenceService {
 
   @Override
   @Transactional(readOnly = true)
+  public List<Track> findTracksByDevice(UUID deviceId) {
+    return trackRepository.findAllByDeviceId(deviceId);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
   public Optional<String> findMostSevereImageUrl(UUID trackId) {
     return assessmentRecordRepository.findAllByTrackIdOrderByCreatedAtAsc(trackId).stream()
         .filter(a -> a.getMediaType() == ChunkType.IMAGE)

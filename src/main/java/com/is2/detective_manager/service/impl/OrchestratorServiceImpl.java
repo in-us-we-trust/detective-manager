@@ -78,6 +78,7 @@ public class OrchestratorServiceImpl implements OrchestratorService {
       StepContext context =
           StepContext.builder()
               .trackId(trackIdStr)
+              .deviceId(deviceId)
               .mediaType(mediaType)
               .payload(payload)
               .accumulated(Map.of())
