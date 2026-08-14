@@ -46,6 +46,15 @@ public class AssessmentRecord {
   @Column(name = "duration_ms")
   private long durationMs;
 
+  /** Tipo de media del chunk que produjo este assessment. */
+  @Enumerated(EnumType.STRING)
+  @Column(name = "media_type")
+  private ChunkType mediaType;
+
+  /** URL de la media subida a Cloudinary (por ahora, solo imágenes). */
+  @Column(name = "media_url")
+  private String mediaUrl;
+
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
 }

@@ -13,7 +13,16 @@ public class MockObjectRecognizer implements ObjectRecognizer {
 
   @Override
   public List<String> detectObjects(byte[] image) {
-    log.info("[mock] Detección de objetos simulada -> [phone]");
-    return List.of("phone");
+    // TEMPORAL (solo para pruebas): delay artificial para ver que el assessment
+    // del step 1 llega a la cola ANTES de que termine este step. QUITAR después.
+    try {
+      log.info("[mock] Simulando análisis lento de objetos (delay de prueba)...");
+      Thread.sleep(10_000); // 10 segundos
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+
+    log.info("[mock] Detección de objetos simulada -> [phone, weapon]");
+    return List.of("phone", "weapon");
   }
 }

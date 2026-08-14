@@ -1,6 +1,7 @@
 package com.is2.detective_manager.service.impl;
 
 import com.is2.detective_manager.model.entity.AssessmentRecord;
+import com.is2.detective_manager.model.entity.ChunkType;
 import com.is2.detective_manager.model.entity.Track;
 import com.is2.detective_manager.model.entity.TrackStatus;
 import com.is2.detective_manager.orchestrator.Verdict;
@@ -12,7 +13,9 @@ import com.is2.detective_manager.service.TrackPersistenceService;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -55,7 +58,9 @@ public class TrackPersistenceServiceImpl implements TrackPersistenceService {
       List<Signal> stepSignals,
       List<Signal> accumulatedSignals,
       Assessment assessment,
-      long durationMs) {
+      long durationMs,
+      ChunkType mediaType,
+      String mediaUrl) {
 
     // 1) crear el AssessmentRecord de este step
     AssessmentRecord record = new AssessmentRecord();
@@ -66,6 +71,8 @@ public class TrackPersistenceServiceImpl implements TrackPersistenceService {
     record.setVerdict(assessment.getVerdict());
     record.setMessage(assessment.getMessage());
     record.setDurationMs(durationMs);
+    record.setMediaType(mediaType);
+    record.setMediaUrl(mediaUrl);
     record.setCreatedAt(LocalDateTime.now());
     assessmentRecordRepository.save(record);
 
@@ -89,6 +96,17 @@ public class TrackPersistenceServiceImpl implements TrackPersistenceService {
         assessment.getVerdict());
 
     return record;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<String> findMostSevereImageUrl(UUID trackId) {
+    return assessmentRecordRepository.findAllByTrackIdOrderByCreatedAtAsc(trackId).stream()
+        .filter(a -> a.getMediaType() == ChunkType.IMAGE)
+        .filter(a -> a.getMediaUrl() != null && !a.getMediaUrl().isBlank())
+        // el más peligroso primero (mayor level de severity)
+        .max(Comparator.comparingInt(a -> a.getSeverity().getLevel()))
+        .map(AssessmentRecord::getMediaUrl);
   }
 
   @Override

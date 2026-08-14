@@ -17,6 +17,20 @@ public class CloudinaryStorageClientImpl implements CloudinaryStorageClient {
   private final Cloudinary cloudinary;
 
   @Override
+  public String uploadImageBytes(byte[] image, UUID deviceId) {
+    String publicId = "events/" + deviceId + "/" + UUID.randomUUID();
+    log.info("Uploading image bytes to Cloudinary: {}", publicId);
+    try {
+      Map<?, ?> result =
+          cloudinary.uploader().upload(image, ObjectUtils.asMap("public_id", publicId));
+      return result.get("secure_url").toString();
+    } catch (IOException e) {
+      log.error("Failed to upload image bytes to Cloudinary", e);
+      throw new RuntimeException("Cloudinary upload failed", e);
+    }
+  }
+
+  @Override
   public String uploadEventImage(String base64Image, UUID deviceId) {
     String publicId = "events/" + deviceId + "/" + UUID.randomUUID();
     log.info("Uploading event image to Cloudinary: {}", publicId);

@@ -22,9 +22,17 @@ public class RabbitMqConfig {
       RabbitTemplate rabbitTemplate,
       @Value("${rabbitmq.notifications.exchange}") String exchange,
       @Value("${rabbitmq.notifications.routing-key}") String routingKey,
+      @Value("${rabbitmq.assessments.exchange}") String assessmentsExchange,
+      @Value("${rabbitmq.assessments.routing-key}") String assessmentsRoutingKey,
       @Value("${rabbitmq.notifications.publish.max-attempts}") int maxAttempts,
       @Value("${rabbitmq.notifications.publish.retry-delay-ms}") long retryDelayMs) {
     return new RabbitNotificationPublisher(
-        rabbitTemplate, exchange, routingKey, maxAttempts, retryDelayMs);
+        rabbitTemplate,
+        exchange,
+        routingKey,
+        assessmentsExchange,
+        assessmentsRoutingKey,
+        maxAttempts,
+        retryDelayMs);
   }
 }
