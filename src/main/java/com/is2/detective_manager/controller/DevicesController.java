@@ -24,12 +24,16 @@ public class DevicesController {
 
   private final DeviceService deviceService;
   private final TrackPersistenceService trackPersistenceService;
+  private final TrackMapper trackMapper;
 
   @Autowired
   public DevicesController(
-      DeviceService deviceService, TrackPersistenceService trackPersistenceService) {
+      DeviceService deviceService,
+      TrackPersistenceService trackPersistenceService,
+      TrackMapper trackMapper) {
     this.deviceService = deviceService;
     this.trackPersistenceService = trackPersistenceService;
+    this.trackMapper = trackMapper;
   }
 
   @Operation(
@@ -218,7 +222,7 @@ public class DevicesController {
       @PathVariable UUID deviceId) {
     List<TrackResponseDto> tracks =
         trackPersistenceService.findTracksByDevice(deviceId).stream()
-            .map(TrackMapper::toDto)
+            .map(trackMapper::toDto)
             .toList();
     return ResponseEntity.ok(StandardResponse.of(tracks));
   }

@@ -14,6 +14,6 @@ public class MockFaceRecognizer implements FaceRecognizer {
   @Override
   public boolean isKnown(byte[] image, UUID deviceId) {
     log.info("[mock] Reconocimiento facial simulado -> known=false");
-    return false;
+    return true;
   }
 }

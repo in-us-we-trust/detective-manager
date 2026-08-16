@@ -31,6 +31,13 @@ public class RuleBasedDangerEvaluator implements DangerEvaluator {
               .verdict(Verdict.STOP_DANGER)
               .message("Amenaza verbal detectada")
               .build(),
+          // Persona reconocida Y sin objetos amenazantes: se confirma seguro y se concluye.
+          Rule.builder()
+              .requires(EnumSet.of(Signal.KNOWN_PERSON, Signal.NO_THREAT_OBJECT))
+              .severity(Severity.NORMAL)
+              .verdict(Verdict.STOP_SAFE)
+              .message("Persona reconocida")
+              .build(),
           Rule.builder()
               .requires(EnumSet.of(Signal.COVERED_FACE, Signal.UNKNOWN_PERSON))
               .severity(Severity.SOSPECHOSO)
@@ -41,7 +48,7 @@ public class RuleBasedDangerEvaluator implements DangerEvaluator {
               .requires(EnumSet.of(Signal.AUTHORITY, Signal.URGENCY))
               .severity(Severity.SOSPECHOSO)
               .verdict(Verdict.CONTINUE)
-              .message("Posible manipulación.")
+              .message("Posible manipulación: autoridad + urgencia")
               .build(),
           Rule.builder()
               .requires(EnumSet.of(Signal.UNKNOWN_PERSON))

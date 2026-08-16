@@ -22,7 +22,7 @@ public class MockObjectRecognizer implements ObjectRecognizer {
       Thread.currentThread().interrupt();
     }
 
-    log.info("[mock] Detección de objetos simulada -> [phone, weapon]");
-    return List.of("phone", "weapon");
+    log.info("[mock] Detección de objetos simulada -> [phone]");
+    return List.of("phone");
   }
 }

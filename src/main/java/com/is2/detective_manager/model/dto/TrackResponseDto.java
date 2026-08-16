@@ -1,5 +1,6 @@
 package com.is2.detective_manager.model.dto;
 
+import com.is2.detective_manager.mapper.TrackAppCode;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -14,6 +15,8 @@ import lombok.Data;
 @Schema(description = "Resumen de una visita analizada.")
 public class TrackResponseDto {
 
+  private TrackAppCode code; // código estable para mapear a ícono/color en la app
+  private String title; // mensaje legible para la app
   private UUID trackId;
   private UUID deviceId;
   private String status;             // CREATED / CLOSED / ...

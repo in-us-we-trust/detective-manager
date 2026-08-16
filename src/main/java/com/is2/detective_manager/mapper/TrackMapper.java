@@ -2,14 +2,21 @@ package com.is2.detective_manager.mapper;
 
 import com.is2.detective_manager.model.dto.TrackResponseDto;
 import com.is2.detective_manager.model.entity.Track;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 
-/** Convierte la entity Track al DTO de respuesta. */
-public final class TrackMapper {
+/** Convierte la entity Track al DTO de respuesta, incluyendo el título para la app. */
+@Component
+@RequiredArgsConstructor
+public class TrackMapper {
 
-  private TrackMapper() {}
+  private final TrackMessageBuilder trackMessageBuilder;
 
-  public static TrackResponseDto toDto(Track track) {
+  public TrackResponseDto toDto(Track track) {
+    TrackDisplay display = trackMessageBuilder.build(track.getAccumulatedSignals());
     return TrackResponseDto.builder()
+        .code(display.code())
+        .title(display.title())
         .trackId(track.getId())
         .deviceId(track.getDeviceId())
         .status(track.getStatus() != null ? track.getStatus().name() : null)
