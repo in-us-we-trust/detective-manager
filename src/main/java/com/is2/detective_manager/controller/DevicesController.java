@@ -1,9 +1,12 @@
 package com.is2.detective_manager.controller;
 
+import com.is2.detective_manager.exception.DetectiveException;
 import com.is2.detective_manager.exception.ExceptionContent;
+import com.is2.detective_manager.exception.ExceptionEnum;
 import com.is2.detective_manager.model.dto.*;
 import com.is2.detective_manager.model.generic.StandardResponse;
 import com.is2.detective_manager.mapper.TrackMapper;
+import com.is2.detective_manager.model.entity.Track;
 import com.is2.detective_manager.service.DeviceService;
 import com.is2.detective_manager.service.TrackPersistenceService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -225,5 +228,33 @@ public class DevicesController {
             .map(trackMapper::toDto)
             .toList();
     return ResponseEntity.ok(StandardResponse.of(tracks));
+  }
+
+  @Operation(
+      summary = "Get track detail",
+      description = "Returns the detail of a single track (visit), including its image if any.")
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "Track detail retrieved"),
+        @ApiResponse(
+            responseCode = "404",
+            description = "Track not found",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ExceptionContent.class)))
+      })
+  @GetMapping("/{deviceId}/tracks/{trackId}")
+  public ResponseEntity<StandardResponse<TrackDetailResponseDto>> getTrackDetail(
+      @PathVariable UUID deviceId, @PathVariable UUID trackId) {
+    Track track =
+        trackPersistenceService
+            .findTrackById(trackId)
+            .orElseThrow(() -> new DetectiveException(ExceptionEnum.TRACK_NOT_FOUND));
+
+    String imageUrl = trackPersistenceService.findMostSevereImageUrl(trackId).orElse(null);
+
+    return ResponseEntity.ok(
+        StandardResponse.of(trackMapper.toDetailDto(track, imageUrl)));
   }
 }

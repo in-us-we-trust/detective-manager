@@ -19,6 +19,8 @@ public enum ExceptionEnum {
       "There was an error sending the intruder notification."),
   DEVICE_NOT_FOUND(
       "Device not found.", HttpStatus.NOT_FOUND, "The requested device does not exist."),
+  TRACK_NOT_FOUND(
+      "Track not found.", HttpStatus.NOT_FOUND, "The requested track does not exist."),
   DEVICE_ALREADY_EXISTS(
       "Device already exists.",
       HttpStatus.CONFLICT,

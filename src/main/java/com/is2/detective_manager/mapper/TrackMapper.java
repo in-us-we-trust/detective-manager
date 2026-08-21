@@ -1,5 +1,6 @@
 package com.is2.detective_manager.mapper;
 
+import com.is2.detective_manager.model.dto.TrackDetailResponseDto;
 import com.is2.detective_manager.model.dto.TrackResponseDto;
 import com.is2.detective_manager.model.entity.Track;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,20 @@ public class TrackMapper {
         .finalSeverity(track.getFinalSeverity() != null ? track.getFinalSeverity().name() : null)
         .createdAt(track.getCreatedAt())
         .updatedAt(track.getUpdatedAt())
+        .build();
+  }
+
+  /** Detalle del track: campos reducidos + la imagen (null si no hay). */
+  public TrackDetailResponseDto toDetailDto(Track track, String imageUrl) {
+    TrackDisplay display = trackMessageBuilder.build(track.getAccumulatedSignals());
+    return TrackDetailResponseDto.builder()
+        .code(display.code())
+        .title(display.title())
+        .finalVerdict(track.getFinalVerdict() != null ? track.getFinalVerdict().name() : null)
+        .finalSeverity(track.getFinalSeverity() != null ? track.getFinalSeverity().name() : null)
+        .createdAt(track.getCreatedAt())
+        .updatedAt(track.getUpdatedAt())
+        .imageUrl(imageUrl)
         .build();
   }
 }

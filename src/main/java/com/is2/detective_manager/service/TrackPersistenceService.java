@@ -40,4 +40,7 @@ public interface TrackPersistenceService {
 
   /** Lista los tracks de un dispositivo. */
   List<Track> findTracksByDevice(UUID deviceId);
+
+  /** Busca un track por su id (=trackId). Vacío si no existe. */
+  Optional<Track> findTrackById(UUID trackId);
 }
