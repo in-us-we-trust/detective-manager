@@ -1,12 +1,11 @@
 package com.is2.detective_manager.orchestrator.step.objectrecognition;
 
-import java.util.List;
-
 /**
- * Colaborador del ObjectRecognitionStep. Detecta objetos en la imagen (ej. armas).
+ * Colaborador del ObjectRecognitionStep. Detecta objetos en la imagen.
+ * Devuelve los objetos (con confidence) y los counts por label.
  * Es lo único que cambia entre real y mock.
  */
 public interface ObjectRecognizer {
 
-  List<String> detectObjects(byte[] image);
+  ObjectDetectionResult detectObjects(byte[] image);
 }

@@ -13,9 +13,11 @@ public enum Signal {
   KNOWN_PERSON,   // la cara es conocida
 
   // --- Reconocimiento de objetos ---
-  WEAPON_DETECTED,   // se detectó un arma
+  WEAPON_DETECTED,   // se detectó un arma (Firearm, Melee_Weapon, Blunt Weapon, Explosive)
   COVERED_FACE,      // cara tapada
   NO_THREAT_OBJECT,  // no se detectó ningún objeto amenazante
+  PERSON,            // se detectó al menos una persona
+  MULTIPLE_PEOPLE,   // se detectó más de una persona
 
   // --- Análisis de conversación (audio) ---
   URGENCY,                // presión de urgencia ("ahora", "ya mismo")

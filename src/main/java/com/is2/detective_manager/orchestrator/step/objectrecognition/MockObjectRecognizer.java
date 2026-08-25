@@ -1,28 +1,27 @@
 package com.is2.detective_manager.orchestrator.step.objectrecognition;
 
 import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-/** Implementación mock: devuelve una lista fija de objetos detectados. */
+/** Mock: devuelve objetos y counts fijos (basados en un ejemplo real del ML). */
 @Slf4j
 @Component
 @Profile("mock-objects")
 public class MockObjectRecognizer implements ObjectRecognizer {
 
   @Override
-  public List<String> detectObjects(byte[] image) {
-    // TEMPORAL (solo para pruebas): delay artificial para ver que el assessment
-    // del step 1 llega a la cola ANTES de que termine este step. QUITAR después.
-    try {
-      log.info("[mock] Simulando análisis lento de objetos (delay de prueba)...");
-      Thread.sleep(10_000); // 10 segundos
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-    }
-
-    log.info("[mock] Detección de objetos simulada -> [phone]");
-    return List.of("phone");
+  public ObjectDetectionResult detectObjects(byte[] image) {
+    log.info("[mock] Detección de objetos simulada");
+    List<DetectedObject> objects =
+        List.of(
+            new DetectedObject("person", 0.95),
+            new DetectedObject("covered_face", 0.88),
+            new DetectedObject("Firearm", 0.90));
+    Map<String, Integer> counts =
+        Map.of("person", 1, "covered_face", 1, "Firearm", 1);
+    return new ObjectDetectionResult(objects, counts);
   }
 }

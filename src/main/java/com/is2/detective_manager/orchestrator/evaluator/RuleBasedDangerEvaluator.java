@@ -51,6 +51,12 @@ public class RuleBasedDangerEvaluator implements DangerEvaluator {
               .message("Posible manipulación: autoridad + urgencia")
               .build(),
           Rule.builder()
+              .requires(EnumSet.of(Signal.MULTIPLE_PEOPLE))
+              .severity(Severity.SOSPECHOSO)
+              .verdict(Verdict.CONTINUE)
+              .message("Se detectaron varias personas en la puerta")
+              .build(),
+          Rule.builder()
               .requires(EnumSet.of(Signal.UNKNOWN_PERSON))
               .severity(Severity.LLAMATIVO)
               .verdict(Verdict.CONTINUE)
