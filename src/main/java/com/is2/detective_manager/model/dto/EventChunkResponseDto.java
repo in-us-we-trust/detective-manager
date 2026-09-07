@@ -23,4 +23,7 @@ public class EventChunkResponseDto {
   @Schema(description = "Severity final alcanzada.", example = "PELIGROSO")
   private String finalSeverity;
 
+  @Schema(description = "Mensaje de la conclusión.", example = "La persona está armada")
+  private String message;
+
 }

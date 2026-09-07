@@ -194,6 +194,7 @@ public class OrchestratorServiceImpl implements OrchestratorService {
         .chunkType(mediaType.name())
         .finalVerdict(finalA != null ? finalA.getVerdict().name() : null)
         .finalSeverity(finalA != null ? finalA.getSeverity().name() : null)
+        .message(finalA != null ? finalA.getMessage() : null)
         .build();
   }
 }
