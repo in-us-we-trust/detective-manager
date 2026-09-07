@@ -14,14 +14,22 @@ public class MockObjectRecognizer implements ObjectRecognizer {
 
   @Override
   public ObjectDetectionResult detectObjects(byte[] image) {
+    // TEMPORAL (prueba de paralelismo): delay para ver que corre en paralelo. QUITAR después.
+    try {
+      log.info("[mock] object: INICIO análisis (5000 ms) en thread {}", Thread.currentThread().getName());
+      Thread.sleep(5000);
+      log.info("[mock] object: FIN análisis en thread {}", Thread.currentThread().getName());
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+
     log.info("[mock] Detección de objetos simulada");
     List<DetectedObject> objects =
         List.of(
             new DetectedObject("person", 0.95),
             new DetectedObject("covered_face", 0.88),
             new DetectedObject("Firearm", 0.90));
-    Map<String, Integer> counts =
-        Map.of("person", 1, "covered_face", 1, "Firearm", 1);
+    Map<String, Integer> counts = Map.of("person", 1, "covered_face", 1, "Firearm", 1);
     return new ObjectDetectionResult(objects, counts);
   }
 }

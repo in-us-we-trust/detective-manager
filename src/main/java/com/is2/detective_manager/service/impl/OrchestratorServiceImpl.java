@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -36,6 +38,8 @@ public class OrchestratorServiceImpl implements OrchestratorService {
   private final TrackPersistenceService trackPersistenceService;
   private final NotificationPublisher notificationPublisher;
   private final CloudinaryStorageClient cloudinaryStorageClient;
+
+  private final ExecutorService analysisExecutor;
 
   /** Reintentos de la consolidación ante conflicto de versión (otro request en paralelo). */
   private static final int MAX_CONSOLIDATION_ATTEMPTS = 5;
@@ -69,33 +73,38 @@ public class OrchestratorServiceImpl implements OrchestratorService {
       return buildResponse(trackIdStr, mediaType, null);
     }
 
-    // === FASE 1: ANÁLISIS (append-only, sin tocar el track) ===
-    // Cada step corre y guarda sus señales. NO se evalúa por step: el veredicto
-    // se calcula una sola vez, en la consolidación, sobre el conjunto completo.
-    List<Signal> chunkSignals = new ArrayList<>();
+    // === FASE 1: ANÁLISIS (steps EN PARALELO, luego persistencia secuencial) ===
+    // Los steps de un chunk son independientes: corren en paralelo (la parte lenta
+    // es el ML). Una "barrera" espera a que todos terminen. Si un step falla, se
+    // continúa con las señales de los que sí terminaron.
+    StepContext context =
+        StepContext.builder()
+            .trackId(trackIdStr)
+            .deviceId(deviceId)
+            .mediaType(mediaType)
+            .payload(payload)
+            .accumulated(Map.of())
+            .build();
 
+    List<CompletableFuture<StepOutcome>> futures = new ArrayList<>();
     for (AnalysisStep step : steps) {
-      String stepName = step.getClass().getSimpleName();
+      futures.add(CompletableFuture.supplyAsync(() -> runStep(step, context), analysisExecutor));
+    }
 
-      StepContext context =
-          StepContext.builder()
-              .trackId(trackIdStr)
-              .deviceId(deviceId)
-              .mediaType(mediaType)
-              .payload(payload)
-              .accumulated(Map.of())
-              .build();
+    // BARRERA: esperar a que todos terminen (ok o con error).
+    CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
 
-      long startedAt = System.currentTimeMillis();
-      StepResult result = step.execute(context);
-      long durationMs = System.currentTimeMillis() - startedAt;
-      log.info("Step {} ejecutado ({} ms) -> signals={}", stepName, durationMs, result.getSignals());
-
-      chunkSignals.addAll(result.getSignals());
-
-      // Insertar el assessment (solo señales; no toca el track).
+    // Ya en el thread principal (secuencial): juntar resultados, persistir.
+    List<Signal> chunkSignals = new ArrayList<>();
+    for (CompletableFuture<StepOutcome> future : futures) {
+      StepOutcome outcome = future.join();
+      if (outcome == null) {
+        continue; // el step falló; seguimos con los demás
+      }
+      chunkSignals.addAll(outcome.signals());
       trackPersistenceService.saveAssessment(
-          track, requestId, stepName, result.getSignals(), durationMs, mediaType, mediaUrl);
+          track, requestId, outcome.stepName(), outcome.signals(), outcome.durationMs(),
+          mediaType, mediaUrl);
     }
 
     // === FASE 2: CONSOLIDACIÓN (protegida, con optimistic retry) ===
@@ -111,6 +120,24 @@ public class OrchestratorServiceImpl implements OrchestratorService {
 
     return buildResponse(trackIdStr, mediaType, consolidation);
   }
+
+  /** Corre un step capturando errores: si falla, devuelve null (se ignora ese step). */
+  private StepOutcome runStep(AnalysisStep step, StepContext context) {
+    String stepName = step.getClass().getSimpleName();
+    try {
+      long startedAt = System.currentTimeMillis();
+      StepResult result = step.execute(context);
+      long durationMs = System.currentTimeMillis() - startedAt;
+      log.info("Step {} ejecutado ({} ms) -> signals={}", stepName, durationMs, result.getSignals());
+      return new StepOutcome(stepName, result.getSignals(), durationMs);
+    } catch (Exception e) {
+      log.error("Step {} falló; se continúa con los demás", stepName, e);
+      return null;
+    }
+  }
+
+  /** Resultado de un step ya ejecutado (para juntar tras la barrera). */
+  private record StepOutcome(String stepName, List<Signal> signals, long durationMs) {}
 
   /** Consolida reintentando ante conflicto de versión (cada intento es una tx nueva). */
   private TrackConsolidation consolidateWithRetry(UUID trackId, List<Signal> chunkSignals) {
