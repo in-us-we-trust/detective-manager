@@ -2,9 +2,6 @@ package com.is2.detective_manager.service.impl;
 
 import com.is2.detective_manager.client.CloudinaryStorageClient;
 import com.is2.detective_manager.client.NotificationPublisher;
-import com.is2.detective_manager.mapper.AssessmentMapper;
-import com.is2.detective_manager.model.dto.AssessmentDto;
-import com.is2.detective_manager.model.dto.AssessmentMessageDto;
 import com.is2.detective_manager.model.dto.EventChunkResponseDto;
 import com.is2.detective_manager.model.dto.IntruderNotificationMessageDto;
 import com.is2.detective_manager.model.entity.ChunkType;
@@ -13,11 +10,10 @@ import com.is2.detective_manager.orchestrator.AnalysisPipeline;
 import com.is2.detective_manager.orchestrator.AnalysisStep;
 import com.is2.detective_manager.orchestrator.StepContext;
 import com.is2.detective_manager.orchestrator.StepResult;
-import com.is2.detective_manager.orchestrator.Verdict;
 import com.is2.detective_manager.orchestrator.evaluator.Assessment;
-import com.is2.detective_manager.orchestrator.evaluator.DangerEvaluator;
 import com.is2.detective_manager.orchestrator.evaluator.Signal;
 import com.is2.detective_manager.service.OrchestratorService;
+import com.is2.detective_manager.service.TrackConsolidation;
 import com.is2.detective_manager.service.TrackPersistenceService;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
@@ -28,6 +24,7 @@ import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -36,23 +33,26 @@ import org.springframework.stereotype.Service;
 public class OrchestratorServiceImpl implements OrchestratorService {
 
   private final AnalysisPipeline pipeline;
-  private final DangerEvaluator dangerEvaluator;
   private final TrackPersistenceService trackPersistenceService;
   private final NotificationPublisher notificationPublisher;
   private final CloudinaryStorageClient cloudinaryStorageClient;
+
+  /** Reintentos de la consolidación ante conflicto de versión (otro request en paralelo). */
+  private static final int MAX_CONSOLIDATION_ATTEMPTS = 5;
 
   @Override
   public EventChunkResponseDto handleEvent(
       String trackIdStr, String deviceIdStr, ChunkType mediaType, byte[] payload) {
     UUID trackId = UUID.fromString(trackIdStr);
     UUID deviceId = UUID.fromString(deviceIdStr);
-    log.info("Procesando chunk para trackId={} device={} mediaType={}", trackId, deviceId, mediaType);
+    UUID requestId = UUID.randomUUID();
+    log.info(
+        "Procesando chunk requestId={} trackId={} device={} mediaType={}",
+        requestId, trackId, deviceId, mediaType);
 
     Track track = trackPersistenceService.findOrCreateTrack(trackId, deviceId);
-    List<Signal> accumulatedSignals = trackPersistenceService.readAccumulatedSignals(track);
-    log.info("Señales acumuladas previas: {}", accumulatedSignals);
 
-    // Si el chunk es una imagen, la subimos UNA vez a Cloudinary y reusamos la URL.
+    // Si el chunk es una imagen, la subimos UNA vez a Cloudinary.
     String mediaUrl = null;
     if (mediaType == ChunkType.IMAGE) {
       try {
@@ -66,11 +66,13 @@ public class OrchestratorServiceImpl implements OrchestratorService {
     List<AnalysisStep> steps = pipeline.stepsFor(mediaType);
     if (steps.isEmpty()) {
       log.info("No hay steps para mediaType={}", mediaType);
-      return buildResponse(trackIdStr, mediaType, track, List.of());
+      return buildResponse(trackIdStr, mediaType, null);
     }
 
-    List<Assessment> assessments = new ArrayList<>();
-    Assessment lastAssessment = null;
+    // === FASE 1: ANÁLISIS (append-only, sin tocar el track) ===
+    // Cada step corre y guarda sus señales. NO se evalúa por step: el veredicto
+    // se calcula una sola vez, en la consolidación, sobre el conjunto completo.
+    List<Signal> chunkSignals = new ArrayList<>();
 
     for (AnalysisStep step : steps) {
       String stepName = step.getClass().getSimpleName();
@@ -87,38 +89,52 @@ public class OrchestratorServiceImpl implements OrchestratorService {
       long startedAt = System.currentTimeMillis();
       StepResult result = step.execute(context);
       long durationMs = System.currentTimeMillis() - startedAt;
-
       log.info("Step {} ejecutado ({} ms) -> signals={}", stepName, durationMs, result.getSignals());
 
-      accumulatedSignals.addAll(result.getSignals());
-      Assessment assessment = dangerEvaluator.evaluate(accumulatedSignals);
-      assessments.add(assessment);
-      lastAssessment = assessment;
+      chunkSignals.addAll(result.getSignals());
 
-      trackPersistenceService.saveStepResult(
-          track, stepName, result.getSignals(), accumulatedSignals, assessment, durationMs,
-          mediaType, mediaUrl);
-      publishAssessment(trackIdStr, stepName, assessment);
+      // Insertar el assessment (solo señales; no toca el track).
+      trackPersistenceService.saveAssessment(
+          track, requestId, stepName, result.getSignals(), durationMs, mediaType, mediaUrl);
+    }
 
-      if (assessment.getVerdict() != Verdict.CONTINUE) {
-        log.info("Corte temprano ({}) tras step {}", assessment.getVerdict(), stepName);
-        break;
+    // === FASE 2: CONSOLIDACIÓN (protegida, con optimistic retry) ===
+    // Recalcula el veredicto sobre TODAS las señales del track. Le pasamos las
+    // señales de ESTE chunk (en memoria): en el camino feliz evita releer los
+    // assessments; ante conflicto, la consolidación relee de la DB.
+    TrackConsolidation consolidation = consolidateWithRetry(trackId, chunkSignals);
+
+    // === FASE 3: NOTIFICACIÓN (efecto externo, DESPUÉS del commit) ===
+    if (consolidation.shouldNotify()) {
+      maybeNotifyDanger(trackId, deviceId, consolidation.finalAssessment());
+    }
+
+    return buildResponse(trackIdStr, mediaType, consolidation);
+  }
+
+  /** Consolida reintentando ante conflicto de versión (cada intento es una tx nueva). */
+  private TrackConsolidation consolidateWithRetry(UUID trackId, List<Signal> chunkSignals) {
+    ObjectOptimisticLockingFailureException lastConflict = null;
+    for (int attempt = 1; attempt <= MAX_CONSOLIDATION_ATTEMPTS; attempt++) {
+      try {
+        // attempt==1: usa las señales en memoria (evita releer). Reintentos: relee.
+        boolean firstAttempt = attempt == 1;
+        return trackPersistenceService.consolidateTrack(trackId, chunkSignals, firstAttempt);
+      } catch (ObjectOptimisticLockingFailureException conflict) {
+        lastConflict = conflict;
+        log.warn(
+            "Conflicto de versión consolidando track {} (intento {}/{}). Reintentando.",
+            trackId, attempt, MAX_CONSOLIDATION_ATTEMPTS);
       }
     }
-
-    // Si el veredicto final es STOP_DANGER, disparar la notificación de intruso
-    // (solo si tenemos una imagen para mostrar).
-    if (lastAssessment != null && lastAssessment.getVerdict() == Verdict.STOP_DANGER) {
-      maybeNotifyDanger(trackId, deviceId, lastAssessment);
-    }
-
-    return buildResponse(trackIdStr, mediaType, track, assessments);
+    log.error("No se pudo consolidar el track {} tras {} intentos", trackId, MAX_CONSOLIDATION_ATTEMPTS);
+    throw lastConflict;
   }
 
   private void maybeNotifyDanger(UUID trackId, UUID deviceId, Assessment assessment) {
     Optional<String> imageUrl = trackPersistenceService.findMostSevereImageUrl(trackId);
     if (imageUrl.isEmpty()) {
-      log.info("STOP_DANGER en track {} pero sin imagen: no se envía notificación.", trackId);
+      log.info("DANGER en track {} pero sin imagen: no se envía notificación.", trackId);
       return;
     }
 
@@ -129,7 +145,7 @@ public class OrchestratorServiceImpl implements OrchestratorService {
             .deviceId(deviceId)
             .time(OffsetDateTime.now().format(DateTimeFormatter.ISO_INSTANT))
             .title("Peligro detectado")
-            .message(assessment.getMessage()) // el motivo concreto, ej. "La persona está armada"
+            .message(assessment.getMessage())
             .imageUrl(imageUrl.get())
             .build();
 
@@ -141,34 +157,16 @@ public class OrchestratorServiceImpl implements OrchestratorService {
     }
   }
 
-  private void publishAssessment(String trackId, String step, Assessment assessment) {
-    AssessmentMessageDto message =
-        AssessmentMessageDto.builder()
-            .trackId(trackId)
-            .step(step)
-            .status(assessment.getStatus().name())
-            .severity(assessment.getSeverity().name())
-            .message(assessment.getMessage())
-            .verdict(assessment.getVerdict().name())
-            .build();
-    try {
-      notificationPublisher.publishAssessment(message);
-    } catch (Exception exception) {
-      log.error("No se pudo publicar el assessment a la cola (se continúa igual)", exception);
-    }
-  }
-
   private EventChunkResponseDto buildResponse(
-      String trackIdStr, ChunkType mediaType, Track track, List<Assessment> assessments) {
+      String trackIdStr, ChunkType mediaType, TrackConsolidation consolidation) {
 
-    List<AssessmentDto> dtos = assessments.stream().map(AssessmentMapper::toDto).toList();
+    Assessment finalA = consolidation != null ? consolidation.finalAssessment() : null;
 
     return EventChunkResponseDto.builder()
         .trackId(trackIdStr)
         .chunkType(mediaType.name())
-        .finalVerdict(track.getFinalVerdict() != null ? track.getFinalVerdict().name() : null)
-        .finalSeverity(track.getFinalSeverity() != null ? track.getFinalSeverity().name() : null)
-        .assessments(dtos)
+        .finalVerdict(finalA != null ? finalA.getVerdict().name() : null)
+        .finalSeverity(finalA != null ? finalA.getSeverity().name() : null)
         .build();
   }
 }

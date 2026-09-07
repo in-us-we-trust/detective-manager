@@ -22,20 +22,20 @@ public class RuleBasedDangerEvaluator implements DangerEvaluator {
           Rule.builder()
               .requires(EnumSet.of(Signal.WEAPON_DETECTED))
               .severity(Severity.PELIGROSO)
-              .verdict(Verdict.STOP_DANGER)
+              .verdict(Verdict.DANGER)
               .message("La persona está armada")
               .build(),
           Rule.builder()
               .requires(EnumSet.of(Signal.THREAT))
               .severity(Severity.PELIGROSO)
-              .verdict(Verdict.STOP_DANGER)
+              .verdict(Verdict.DANGER)
               .message("Amenaza verbal detectada")
               .build(),
           // Persona reconocida Y sin objetos amenazantes: se confirma seguro y se concluye.
           Rule.builder()
               .requires(EnumSet.of(Signal.KNOWN_PERSON, Signal.NO_THREAT_OBJECT))
               .severity(Severity.NORMAL)
-              .verdict(Verdict.STOP_SAFE)
+              .verdict(Verdict.SAFE)
               .message("Persona reconocida")
               .build(),
           Rule.builder()

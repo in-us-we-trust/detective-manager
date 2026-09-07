@@ -16,5 +16,5 @@ public class Assessment {
   AssessmentStatus status; // EVALUATING mientras hay más steps; CONCLUDED al cerrar
   Severity severity;       // nivel de alarma
   String message;          // texto legible, ej. "No se reconoce a la persona"
-  Verdict verdict;         // CONTINUE / STOP_DANGER / STOP_SAFE
+  Verdict verdict;         // CONTINUE / DANGER / SAFE
 }

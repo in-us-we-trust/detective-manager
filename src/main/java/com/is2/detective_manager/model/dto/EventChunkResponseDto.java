@@ -1,7 +1,6 @@
 package com.is2.detective_manager.model.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,12 +17,10 @@ public class EventChunkResponseDto {
   @Schema(description = "Tipo de chunk recibido.", example = "IMAGE")
   private String chunkType;
 
-  @Schema(description = "Veredicto final del pipeline.", example = "STOP_DANGER")
+  @Schema(description = "Veredicto final del pipeline.", example = "DANGER")
   private String finalVerdict;
 
   @Schema(description = "Severity final alcanzada.", example = "PELIGROSO")
   private String finalSeverity;
 
-  @Schema(description = "Lista de assessments emitidos (solo los cambios de severity).")
-  private List<AssessmentDto> assessments;
 }

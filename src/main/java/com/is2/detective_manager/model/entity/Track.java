@@ -44,6 +44,10 @@ public class Track {
   @Column(name = "final_severity")
   private Severity finalSeverity;
 
+  /** Si ya se envió la notificación de peligro (evita re-notificar el mismo track). */
+  @Column(name = "notification_sent", nullable = false)
+  private boolean notificationSent = false;
+
   @OneToMany(mappedBy = "track", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<AssessmentRecord> assessments = new ArrayList<>();
 

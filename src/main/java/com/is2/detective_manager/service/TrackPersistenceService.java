@@ -16,21 +16,40 @@ public interface TrackPersistenceService {
   Track findOrCreateTrack(UUID trackId, UUID deviceId);
 
   /**
-   * Guarda el resultado de un step: crea un AssessmentRecord y actualiza el track.
-   * Incluye el media_type y media_url del chunk que produjo el assessment.
+   * Inserta un assessment (append-only). NO toca el track: es seguro ante
+   * concurrencia porque solo agrega una fila, sin leer-modificar-escribir estado
+   * compartido.
    */
-  AssessmentRecord saveStepResult(
+  AssessmentRecord saveAssessment(
       Track track,
+      UUID requestId,
       String step,
       List<Signal> stepSignals,
-      List<Signal> accumulatedSignals,
-      Assessment assessment,
       long durationMs,
       ChunkType mediaType,
       String mediaUrl);
 
-  /** Reconstruye las señales acumuladas del track (desde el CSV) como lista. */
-  List<Signal> readAccumulatedSignals(Track track);
+  /**
+   * Deriva las señales acumuladas del track juntando las de TODOS sus assessments
+   * (fuente de verdad). Independiente de lo que un request individual haya visto.
+   */
+  List<Signal> readSignalsFromAssessments(UUID trackId);
+
+  /**
+   * Consolida el estado del track: recalcula verdict/severity sobre TODAS las
+   * señales derivadas de sus assessments, y actualiza el track con optimistic
+   * locking + reintento ante conflicto. Devuelve el resultado consolidado
+   * (incluye si corresponde disparar la notificación, una sola vez).
+   */
+  /**
+   * Consolida el track sobre el conjunto completo de señales.
+   * @param chunkSignals señales del chunk en curso (en memoria)
+   * @param useMemory si true (primer intento), arma el conjunto como
+   *     accumulated_signals del track + chunkSignals, sin releer assessments.
+   *     Si false (reintento tras conflicto), relee todas las señales de la DB.
+   */
+  TrackConsolidation consolidateTrack(
+      UUID trackId, java.util.List<Signal> chunkSignals, boolean useMemory);
 
   /**
    * Devuelve la media_url de la IMAGEN del assessment más peligroso del track

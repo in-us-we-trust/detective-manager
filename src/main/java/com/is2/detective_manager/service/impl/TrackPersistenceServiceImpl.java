@@ -6,9 +6,12 @@ import com.is2.detective_manager.model.entity.Track;
 import com.is2.detective_manager.model.entity.TrackStatus;
 import com.is2.detective_manager.orchestrator.Verdict;
 import com.is2.detective_manager.orchestrator.evaluator.Assessment;
+import com.is2.detective_manager.orchestrator.evaluator.DangerEvaluator;
 import com.is2.detective_manager.orchestrator.evaluator.Signal;
+import com.is2.detective_manager.orchestrator.evaluator.SignalSeverity;
 import com.is2.detective_manager.repository.AssessmentRecordRepository;
 import com.is2.detective_manager.repository.TrackRepository;
+import com.is2.detective_manager.service.TrackConsolidation;
 import com.is2.detective_manager.service.TrackPersistenceService;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -30,13 +33,12 @@ public class TrackPersistenceServiceImpl implements TrackPersistenceService {
 
   private final TrackRepository trackRepository;
   private final AssessmentRecordRepository assessmentRecordRepository;
+  private final DangerEvaluator dangerEvaluator;
 
   @Override
   @Transactional
   public Track findOrCreateTrack(UUID trackId, UUID deviceId) {
-    return trackRepository
-        .findById(trackId)
-        .orElseGet(() -> createTrack(trackId, deviceId));
+    return trackRepository.findById(trackId).orElseGet(() -> createTrack(trackId, deviceId));
   }
 
   private Track createTrack(UUID trackId, UUID deviceId) {
@@ -50,52 +52,112 @@ public class TrackPersistenceServiceImpl implements TrackPersistenceService {
     return trackRepository.save(track);
   }
 
+  /**
+   * Inserta un assessment (append-only). NO toca el track: es seguro ante
+   * concurrencia porque solo agrega una fila.
+   */
   @Override
   @Transactional
-  public AssessmentRecord saveStepResult(
+  public AssessmentRecord saveAssessment(
       Track track,
+      UUID requestId,
       String step,
       List<Signal> stepSignals,
-      List<Signal> accumulatedSignals,
-      Assessment assessment,
       long durationMs,
       ChunkType mediaType,
       String mediaUrl) {
 
-    // 1) crear el AssessmentRecord de este step
     AssessmentRecord record = new AssessmentRecord();
     record.setTrack(track);
+    record.setRequestId(requestId);
     record.setStep(step);
     record.setSignals(toCsv(stepSignals));
-    record.setSeverity(assessment.getSeverity());
-    record.setVerdict(assessment.getVerdict());
-    record.setMessage(assessment.getMessage());
     record.setDurationMs(durationMs);
     record.setMediaType(mediaType);
     record.setMediaUrl(mediaUrl);
     record.setCreatedAt(LocalDateTime.now());
     assessmentRecordRepository.save(record);
 
-    // 2) actualizar el track con el estado acumulado
-    track.setCurrentStep(step);
-    track.setAccumulatedSignals(toCsv(accumulatedSignals));
+    log.info(
+        "Assessment guardado: track={} step={} signals=[{}]",
+        track.getId(), step, record.getSignals());
+    return record;
+  }
+
+  /** Deriva las señales acumuladas juntando las de TODOS los assessments del track. */
+  @Override
+  @Transactional(readOnly = true)
+  public List<Signal> readSignalsFromAssessments(UUID trackId) {
+    List<Signal> all = new ArrayList<>();
+    for (AssessmentRecord record :
+        assessmentRecordRepository.findAllByTrackIdOrderByCreatedAtAsc(trackId)) {
+      all.addAll(fromCsv(record.getSignals()));
+    }
+    return all;
+  }
+
+  /**
+   * Un intento de consolidación, en su propia transacción. Recalcula verdict/
+   * severity sobre TODAS las señales derivadas de los assessments y escribe el
+   * track con optimistic locking (@Version). Si otro request consolidó en el
+   * medio, al commitear Hibernate lanza ObjectOptimisticLockingFailureException.
+   * El REINTENTO lo maneja quien llama (el orquestador), porque cada reintento
+   * debe ser una transacción nueva y un self-invoke no respetaría @Transactional.
+   */
+  @Override
+  @Transactional
+  public TrackConsolidation consolidateTrack(
+      UUID trackId, List<Signal> chunkSignals, boolean useMemory) {
+    Track track =
+        trackRepository
+            .findById(trackId)
+            .orElseThrow(() -> new IllegalStateException("Track no existe: " + trackId));
+
+    // 1) Conjunto completo de señales.
+    //    Primer intento: lo de antes (accumulated del track) + lo nuevo (en memoria),
+    //    sin releer assessments. Reintento: releer todo de la DB (hay cambios de otros).
+    List<Signal> allSignals;
+    if (useMemory) {
+      allSignals = fromCsv(track.getAccumulatedSignals());
+      allSignals.addAll(chunkSignals);
+    } else {
+      allSignals = readSignalsFromAssessments(trackId);
+    }
+
+    // 2) Recalcular el veredicto sobre el conjunto completo.
+    Assessment assessment = dangerEvaluator.evaluate(allSignals);
+
+    // 3) ¿Corresponde notificar? Solo si es DANGER y aún no se notificó.
+    boolean shouldNotify =
+        assessment.getVerdict() == Verdict.DANGER && !track.isNotificationSent();
+
+    // 4) Actualizar el track (se escribe con @Version).
+    track.setAccumulatedSignals(toCsv(allSignals));
     track.setFinalSeverity(assessment.getSeverity());
     track.setFinalVerdict(assessment.getVerdict());
     track.setStatus(
-        assessment.getVerdict() == Verdict.CONTINUE
-            ? TrackStatus.CREATED
-            : TrackStatus.CLOSED);
+        assessment.getVerdict() == Verdict.CONTINUE ? TrackStatus.CREATED : TrackStatus.CLOSED);
+    if (shouldNotify) {
+      track.setNotificationSent(true);
+    }
     track.setUpdatedAt(LocalDateTime.now());
-    trackRepository.save(track);
+    trackRepository.save(track); // aquí puede saltar OptimisticLockException
 
     log.info(
-        "Guardado assessment: track={} step={} signals=[{}] verdict={}",
-        track.getId(),
-        step,
-        record.getSignals(),
-        assessment.getVerdict());
+        "Track {} consolidado: verdict={} severity={} shouldNotify={}",
+        trackId, assessment.getVerdict(), assessment.getSeverity(), shouldNotify);
 
-    return record;
+    return new TrackConsolidation(assessment, shouldNotify);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<String> findMostSevereImageUrl(UUID trackId) {
+    return assessmentRecordRepository.findAllByTrackIdOrderByCreatedAtAsc(trackId).stream()
+        .filter(a -> a.getMediaType() == ChunkType.IMAGE)
+        .filter(a -> a.getMediaUrl() != null && !a.getMediaUrl().isBlank())
+        .max(Comparator.comparingInt(a -> SignalSeverity.maxOf(fromCsv(a.getSignals())).getLevel()))
+        .map(AssessmentRecord::getMediaUrl);
   }
 
   @Override
@@ -110,24 +172,6 @@ public class TrackPersistenceServiceImpl implements TrackPersistenceService {
     return trackRepository.findById(trackId);
   }
 
-  @Override
-  @Transactional(readOnly = true)
-  public Optional<String> findMostSevereImageUrl(UUID trackId) {
-    return assessmentRecordRepository.findAllByTrackIdOrderByCreatedAtAsc(trackId).stream()
-        .filter(a -> a.getMediaType() == ChunkType.IMAGE)
-        .filter(a -> a.getMediaUrl() != null && !a.getMediaUrl().isBlank())
-        // el más peligroso primero (mayor level de severity)
-        .max(Comparator.comparingInt(a -> a.getSeverity().getLevel()))
-        .map(AssessmentRecord::getMediaUrl);
-  }
-
-  @Override
-  @Transactional(readOnly = true)
-  public List<Signal> readAccumulatedSignals(Track track) {
-    return fromCsv(track.getAccumulatedSignals());
-  }
-
-  /** Reconstruye la lista de señales desde el CSV. "" o null -> lista vacía. */
   private List<Signal> fromCsv(String csv) {
     if (csv == null || csv.isBlank()) {
       return new ArrayList<>();
@@ -139,11 +183,11 @@ public class TrackPersistenceServiceImpl implements TrackPersistenceService {
         .collect(Collectors.toList());
   }
 
-  /** Convierte una lista de señales a CSV: [UNKNOWN_PERSON, WEAPON] -> "UNKNOWN_PERSON,WEAPON". */
   private String toCsv(List<Signal> signals) {
     if (signals == null || signals.isEmpty()) {
       return "";
     }
-    return signals.stream().map(Enum::name).collect(Collectors.joining(","));
+    // sin duplicados, preservando orden de aparición
+    return signals.stream().map(Enum::name).distinct().collect(Collectors.joining(","));
   }
 }
