@@ -18,8 +18,8 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 /**
- * Real: llama al ML /api/ml-service/v1/analysis/conversation con el audio como
- * multipart (campo visitor_audio) y devuelve las evidencias del dominio del ML.
+ * Real: llama al ML /api/ml-service/v1/analysis/conversation con el audio como multipart (campo
+ * visitor_audio) y devuelve las evidencias del dominio del ML.
  */
 @Slf4j
 @Component

@@ -6,8 +6,8 @@ import java.util.UUID;
 import lombok.Data;
 
 /**
- * Registro persistido del resultado de un step dentro de un track (relación 1..N).
- * Distinto de orchestrator.evaluator.Assessment (que es el objeto en memoria).
+ * Registro persistido del resultado de un step dentro de un track (relación 1..N). Distinto de
+ * orchestrator.evaluator.Assessment (que es el objeto en memoria).
  */
 @Entity
 @Table(name = "dm_assessments")

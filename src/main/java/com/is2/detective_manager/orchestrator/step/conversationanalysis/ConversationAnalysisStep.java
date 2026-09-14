@@ -1,10 +1,10 @@
 package com.is2.detective_manager.orchestrator.step.conversationanalysis;
 
 import com.is2.detective_manager.model.entity.ChunkType;
+import com.is2.detective_manager.model.entity.TrackStatus;
 import com.is2.detective_manager.orchestrator.AnalysisStep;
 import com.is2.detective_manager.orchestrator.StepContext;
 import com.is2.detective_manager.orchestrator.StepResult;
-import com.is2.detective_manager.model.entity.TrackStatus;
 import com.is2.detective_manager.orchestrator.evaluator.Signal;
 import java.util.List;
 import java.util.Map;
@@ -13,10 +13,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * Step de audio: analiza la conversación del visitante.
- * Llama al ML (vía ConversationAnalyzer), y traduce sus evidencias a Signals
- * del dominio del orquestador: si el score de una evidencia supera su umbral,
- * se emite la Signal mapeada.
+ * Step de audio: analiza la conversación del visitante. Llama al ML (vía ConversationAnalyzer), y
+ * traduce sus evidencias a Signals del dominio del orquestador: si el score de una evidencia supera
+ * su umbral, se emite la Signal mapeada.
  */
 @Component
 @RequiredArgsConstructor
@@ -26,6 +25,7 @@ public class ConversationAnalysisStep implements AnalysisStep {
 
   /** Umbral por tipo de evidencia del ML. Por ahora: todo > 0.8 dispara señal. */
   private static final double DEFAULT_THRESHOLD = 0.8;
+
   private static final Map<String, Double> THRESHOLDS =
       Map.of(
           "URGENCY", DEFAULT_THRESHOLD,

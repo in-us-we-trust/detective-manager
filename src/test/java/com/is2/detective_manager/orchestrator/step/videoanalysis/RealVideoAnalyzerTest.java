@@ -70,7 +70,9 @@ class RealVideoAnalyzerTest {
     VideoAnalysisResponseDto response = response();
     String url = "http://ml-service/api/ml-service/v1/analysis/video";
     when(restTemplate.postForObject(
-            eq(url), org.mockito.ArgumentMatchers.any(HttpEntity.class), eq(VideoAnalysisResponseDto.class)))
+            eq(url),
+            org.mockito.ArgumentMatchers.any(HttpEntity.class),
+            eq(VideoAnalysisResponseDto.class)))
         .thenReturn(response);
 
     RealVideoAnalyzer analyzer = new RealVideoAnalyzer(restTemplate, "http://ml-service");

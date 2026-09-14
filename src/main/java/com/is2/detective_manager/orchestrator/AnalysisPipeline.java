@@ -11,8 +11,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * Define el ORDEN canónico de los steps. Un request trae un mediaType y se corren
- * TODOS los steps que soportan ese tipo, en orden.
+ * Define el ORDEN canónico de los steps. Un request trae un mediaType y se corren TODOS los steps
+ * que soportan ese tipo, en orden.
  */
 @Component
 @RequiredArgsConstructor

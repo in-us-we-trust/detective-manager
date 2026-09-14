@@ -18,22 +18,7 @@ public class MockVideoAnalyzer implements VideoAnalyzer {
             .mapToObj(
                 second ->
                     new VideoAnalysisResult.VideoObservation(
-                        second,
-                        second,
-                        1,
-                        0.95,
-                        40,
-                        20,
-                        60,
-                        90,
-                        50,
-                        55,
-                        50,
-                        55,
-                        50,
-                        90,
-                        14,
-                        0.1))
+                        second, second, 1, 0.95, 40, 20, 60, 90, 50, 55, 50, 55, 50, 90, 14, 0.1))
             .toList();
     return new VideoAnalysisResult(metadata, observations);
   }

@@ -15,9 +15,8 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 /**
- * Real: reconoce el rostro contra las caras cargadas del device.
- * Trae los embeddings del device de la DB, los manda junto con la imagen al ML,
- * y devuelve si la persona es conocida.
+ * Real: reconoce el rostro contra las caras cargadas del device. Trae los embeddings del device de
+ * la DB, los manda junto con la imagen al ML, y devuelve si la persona es conocida.
  */
 @Slf4j
 @Component
@@ -43,8 +42,7 @@ public class RealFaceRecognizer implements FaceRecognizer {
     String base64Image = Base64.getEncoder().encodeToString(image);
 
     // 3) Llamar al ML con imagen + embeddings.
-    MlFaceRecognitionRequestDto request =
-        new MlFaceRecognitionRequestDto(base64Image, embeddings);
+    MlFaceRecognitionRequestDto request = new MlFaceRecognitionRequestDto(base64Image, embeddings);
     FaceRecognitionResultDto result = mlServiceApiClient.recognizeFace(request);
 
     // 4) Devolver si es conocida.

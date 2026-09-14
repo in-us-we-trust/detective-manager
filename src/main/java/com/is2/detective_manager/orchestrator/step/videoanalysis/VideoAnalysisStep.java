@@ -31,7 +31,8 @@ public class VideoAnalysisStep implements AnalysisStep {
 
   @Override
   public StepResult execute(StepContext context) {
-    VideoBehaviorFeatures features = featureCalculator.calculate(videoAnalyzer.analyze(context.getPayload()));
+    VideoBehaviorFeatures features =
+        featureCalculator.calculate(videoAnalyzer.analyze(context.getPayload()));
     Set<Signal> signals = EnumSet.noneOf(Signal.class);
 
     for (VideoBehaviorFeatures.PersonFeatures person : features.persons()) {
@@ -59,8 +60,7 @@ public class VideoAnalysisStep implements AnalysisStep {
       }
     }
 
-    if (features.longestMultiplePeopleSeconds()
-        >= properties.getMultiplePeopleMinimumSeconds()) {
+    if (features.longestMultiplePeopleSeconds() >= properties.getMultiplePeopleMinimumSeconds()) {
       signals.add(Signal.MULTIPLE_PEOPLE);
     }
 

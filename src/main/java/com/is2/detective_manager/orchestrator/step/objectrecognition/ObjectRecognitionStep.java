@@ -13,9 +13,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * Step de imagen: detección de objetos. Traduce la salida del ML a señales.
- * Dos fuentes: (1) objects con su confidence (umbral por label), y (2) counts
- * (cantidades, ej. más de una persona -> MULTIPLE_PEOPLE).
+ * Step de imagen: detección de objetos. Traduce la salida del ML a señales. Dos fuentes: (1)
+ * objects con su confidence (umbral por label), y (2) counts (cantidades, ej. más de una persona ->
+ * MULTIPLE_PEOPLE).
  */
 @Component
 @RequiredArgsConstructor
@@ -25,6 +25,7 @@ public class ObjectRecognitionStep implements AnalysisStep {
 
   /** Umbral de confidence por label. Por ahora, todos > 0.8. */
   private static final double DEFAULT_THRESHOLD = 0.3;
+
   private static final Map<String, Double> THRESHOLDS =
       Map.of(
           "person", DEFAULT_THRESHOLD,

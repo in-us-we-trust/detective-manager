@@ -53,8 +53,8 @@ public class TrackPersistenceServiceImpl implements TrackPersistenceService {
   }
 
   /**
-   * Inserta un assessment (append-only). NO toca el track: es seguro ante
-   * concurrencia porque solo agrega una fila.
+   * Inserta un assessment (append-only). NO toca el track: es seguro ante concurrencia porque solo
+   * agrega una fila.
    */
   @Override
   @Transactional
@@ -80,7 +80,9 @@ public class TrackPersistenceServiceImpl implements TrackPersistenceService {
 
     log.info(
         "Assessment guardado: track={} step={} signals=[{}]",
-        track.getId(), step, record.getSignals());
+        track.getId(),
+        step,
+        record.getSignals());
     return record;
   }
 
@@ -97,12 +99,12 @@ public class TrackPersistenceServiceImpl implements TrackPersistenceService {
   }
 
   /**
-   * Un intento de consolidación, en su propia transacción. Recalcula verdict/
-   * severity sobre TODAS las señales derivadas de los assessments y escribe el
-   * track con optimistic locking (@Version). Si otro request consolidó en el
-   * medio, al commitear Hibernate lanza ObjectOptimisticLockingFailureException.
-   * El REINTENTO lo maneja quien llama (el orquestador), porque cada reintento
-   * debe ser una transacción nueva y un self-invoke no respetaría @Transactional.
+   * Un intento de consolidación, en su propia transacción. Recalcula verdict/ severity sobre TODAS
+   * las señales derivadas de los assessments y escribe el track con optimistic locking (@Version).
+   * Si otro request consolidó en el medio, al commitear Hibernate lanza
+   * ObjectOptimisticLockingFailureException. El REINTENTO lo maneja quien llama (el orquestador),
+   * porque cada reintento debe ser una transacción nueva y un self-invoke no
+   * respetaría @Transactional.
    */
   @Override
   @Transactional
@@ -128,8 +130,7 @@ public class TrackPersistenceServiceImpl implements TrackPersistenceService {
     Assessment assessment = dangerEvaluator.evaluate(allSignals);
 
     // 3) ¿Corresponde notificar? Solo si es DANGER y aún no se notificó.
-    boolean shouldNotify =
-        assessment.getVerdict() == Verdict.DANGER && !track.isNotificationSent();
+    boolean shouldNotify = assessment.getVerdict() == Verdict.DANGER && !track.isNotificationSent();
 
     // 4) Actualizar el track (se escribe con @Version).
     track.setAccumulatedSignals(toCsv(allSignals));
@@ -145,7 +146,10 @@ public class TrackPersistenceServiceImpl implements TrackPersistenceService {
 
     log.info(
         "Track {} consolidado: verdict={} severity={} shouldNotify={}",
-        trackId, assessment.getVerdict(), assessment.getSeverity(), shouldNotify);
+        trackId,
+        assessment.getVerdict(),
+        assessment.getSeverity(),
+        shouldNotify);
 
     return new TrackConsolidation(assessment, shouldNotify);
   }

@@ -45,7 +45,10 @@ public class RabbitNotificationPublisher implements NotificationPublisher {
         lastException = exception;
         log.warn(
             "Failed to publish {} to RabbitMQ. Attempt {}/{}",
-            description, attempt, maxAttempts, exception);
+            description,
+            attempt,
+            maxAttempts,
+            exception);
         waitBeforeRetry(attempt);
       }
     }

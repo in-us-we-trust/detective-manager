@@ -63,7 +63,8 @@ public class RealVideoAnalyzer implements VideoAnalyzer {
 
     if (response == null || response.getData() == null) {
       log.warn("El ML de análisis de video devolvió una respuesta vacía");
-      return new VideoAnalysisResult(new VideoAnalysisResult.VideoMetadata(0, 0, 0, 0, 0), List.of());
+      return new VideoAnalysisResult(
+          new VideoAnalysisResult.VideoMetadata(0, 0, 0, 0, 0), List.of());
     }
 
     VideoAnalysisResponseDto.DataDto data = response.getData();

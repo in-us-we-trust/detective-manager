@@ -8,9 +8,9 @@ import lombok.Builder;
 import lombok.Data;
 
 /**
- * Detalle de un track (visita). Hoy trae los mismos campos reducidos que el
- * listado + la imagen. Es un DTO separado a propósito, para poder crecer el
- * detalle (más campos, assessments, etc.) sin afectar el listado.
+ * Detalle de un track (visita). Hoy trae los mismos campos reducidos que el listado + la imagen. Es
+ * un DTO separado a propósito, para poder crecer el detalle (más campos, assessments, etc.) sin
+ * afectar el listado.
  */
 @Data
 @Builder

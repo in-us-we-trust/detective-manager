@@ -39,7 +39,8 @@ public class VideoFeatureCalculator {
         analysis != null && analysis.metadata() != null
             ? analysis.metadata()
             : new VideoMetadata(0, 0, 0, 0, 0);
-    List<VideoObservation> observations = sanitize(analysis == null ? null : analysis.observations());
+    List<VideoObservation> observations =
+        sanitize(analysis == null ? null : analysis.observations());
     if (observations.isEmpty()) {
       return new VideoBehaviorFeatures(List.of(), 0, 0, 0, List.of());
     }
@@ -89,7 +90,9 @@ public class VideoFeatureCalculator {
   private List<PersonTrack> stitchFragmentedTracks(List<VideoObservation> observations) {
     Map<Long, List<VideoObservation>> byTrackId = new HashMap<>();
     for (VideoObservation observation : observations) {
-      byTrackId.computeIfAbsent(observation.trackId(), ignored -> new ArrayList<>()).add(observation);
+      byTrackId
+          .computeIfAbsent(observation.trackId(), ignored -> new ArrayList<>())
+          .add(observation);
     }
 
     List<PersonTrack> segments =
@@ -118,8 +121,7 @@ public class VideoFeatureCalculator {
 
         double score =
             distance / Math.max(properties.getIdStitchMaximumDistancePct(), 0.001)
-                + areaDifference
-                    / Math.max(properties.getIdStitchMaximumAreaChangeRatio(), 0.001)
+                + areaDifference / Math.max(properties.getIdStitchMaximumAreaChangeRatio(), 0.001)
                 + gap / Math.max(properties.getIdStitchMaximumGapSeconds(), 0.001);
         if (score < bestScore) {
           best = candidate;
@@ -317,7 +319,8 @@ public class VideoFeatureCalculator {
 
     int edgeWindow = Math.max(1, areaBuckets.size() / 3);
     double firstArea = meanArea(areaBuckets.subList(0, edgeWindow));
-    double lastArea = meanArea(areaBuckets.subList(areaBuckets.size() - edgeWindow, areaBuckets.size()));
+    double lastArea =
+        meanArea(areaBuckets.subList(areaBuckets.size() - edgeWindow, areaBuckets.size()));
     if (firstArea <= 0 || lastArea <= 0) {
       return Approach.stable();
     }
@@ -365,8 +368,7 @@ public class VideoFeatureCalculator {
       double elapsed = current.timestampSeconds() - previous.timestampSeconds();
       if (elapsed <= 0
           || elapsed
-              > properties.getTrackingGapToleranceSeconds()
-                  + properties.getMotionWindowSeconds()) {
+              > properties.getTrackingGapToleranceSeconds() + properties.getMotionWindowSeconds()) {
         continue;
       }
       double dx = current.centerXPct() - previous.centerXPct();
@@ -386,8 +388,7 @@ public class VideoFeatureCalculator {
     for (int index = 1; index < velocities.size() - 1; index++) {
       Velocity candidate = velocities.get(index);
       Velocity following = velocities.get(index + 1);
-      if (angleDegrees(acceptedDirection, candidate)
-              >= properties.getDirectionChangeAngleDegrees()
+      if (angleDegrees(acceptedDirection, candidate) >= properties.getDirectionChangeAngleDegrees()
           && angleDegrees(candidate, following) <= DIRECTION_PERSISTENCE_ANGLE_DEGREES) {
         changes++;
         acceptedDirection = candidate;
@@ -407,8 +408,7 @@ public class VideoFeatureCalculator {
       double elapsed = current.timestampSeconds() - previous.timestampSeconds();
       if (elapsed <= 0
           || elapsed
-              > properties.getTrackingGapToleranceSeconds()
-                  + properties.getMotionWindowSeconds()) {
+              > properties.getTrackingGapToleranceSeconds() + properties.getMotionWindowSeconds()) {
         longest = Math.max(longest, currentStop);
         currentStop = 0;
         continue;
@@ -451,8 +451,7 @@ public class VideoFeatureCalculator {
 
         Velocity outbound =
             new Velocity(
-                far.centerXPct() - origin.centerXPct(),
-                far.centerYPct() - origin.centerYPct());
+                far.centerXPct() - origin.centerXPct(), far.centerYPct() - origin.centerYPct());
         for (int returnIndex = farIndex + 1; returnIndex < buckets.size(); returnIndex++) {
           MotionBucket returned = buckets.get(returnIndex);
           if (returned.timestampSeconds() - origin.timestampSeconds()
@@ -470,8 +469,7 @@ public class VideoFeatureCalculator {
                   returned.centerXPct() - far.centerXPct(),
                   returned.centerYPct() - far.centerYPct());
           if (returnDistance <= properties.getReturnMaximumDistancePct()
-              && angleDegrees(outbound, inbound)
-                  >= properties.getDirectionChangeAngleDegrees()) {
+              && angleDegrees(outbound, inbound) >= properties.getDirectionChangeAngleDegrees()) {
             return true;
           }
         }
@@ -542,11 +540,7 @@ public class VideoFeatureCalculator {
         double average = samples.stream().mapToDouble(Double::doubleValue).average().orElse(0);
         distances.add(
             new RelativeDistance(
-                firstIndex + 1,
-                secondIndex + 1,
-                minimum,
-                average,
-                samples.size() * frameInterval));
+                firstIndex + 1, secondIndex + 1, minimum, average, samples.size() * frameInterval));
       }
     }
     return List.copyOf(distances);
@@ -559,8 +553,7 @@ public class VideoFeatureCalculator {
     for (VideoObservation observation : first) {
       while (secondIndex + 1 < second.size()
           && Math.abs(
-                  second.get(secondIndex + 1).timestampSeconds()
-                      - observation.timestampSeconds())
+                  second.get(secondIndex + 1).timestampSeconds() - observation.timestampSeconds())
               < Math.abs(
                   second.get(secondIndex).timestampSeconds() - observation.timestampSeconds())) {
         secondIndex++;
@@ -584,7 +577,8 @@ public class VideoFeatureCalculator {
     double firstTimestamp = observations.get(0).timestampSeconds();
     Map<Long, BucketAccumulator> buckets = new java.util.LinkedHashMap<>();
     for (VideoObservation observation : observations) {
-      long bucketIndex = (long) Math.floor((observation.timestampSeconds() - firstTimestamp) / window);
+      long bucketIndex =
+          (long) Math.floor((observation.timestampSeconds() - firstTimestamp) / window);
       buckets.computeIfAbsent(bucketIndex, ignored -> new BucketAccumulator()).add(observation);
     }
     return buckets.values().stream().map(BucketAccumulator::toBucket).toList();
@@ -599,12 +593,15 @@ public class VideoFeatureCalculator {
     }
     double meanTime =
         observations.stream()
-                .mapToDouble(observation -> observation.timestampSeconds() * observation.confidence())
+                .mapToDouble(
+                    observation -> observation.timestampSeconds() * observation.confidence())
                 .sum()
             / weightSum;
     double meanValue =
         observations.stream()
-                .mapToDouble(observation -> valueExtractor.applyAsDouble(observation) * observation.confidence())
+                .mapToDouble(
+                    observation ->
+                        valueExtractor.applyAsDouble(observation) * observation.confidence())
                 .sum()
             / weightSum;
     double numerator = 0;
@@ -637,9 +634,7 @@ public class VideoFeatureCalculator {
     for (MotionBucket bucket : buckets) {
       double timeOffset = bucket.timestampSeconds() - meanTime;
       numerator +=
-          bucket.confidence()
-              * timeOffset
-              * (Math.log(bucket.areaFramePct()) - meanLogArea);
+          bucket.confidence() * timeOffset * (Math.log(bucket.areaFramePct()) - meanLogArea);
       denominator += bucket.confidence() * timeOffset * timeOffset;
     }
     return denominator == 0 ? 0 : numerator / denominator;
@@ -663,9 +658,7 @@ public class VideoFeatureCalculator {
 
   private double meanArea(List<MotionBucket> buckets) {
     double weight = buckets.stream().mapToDouble(MotionBucket::confidence).sum();
-    return buckets.stream()
-            .mapToDouble(bucket -> bucket.areaFramePct() * bucket.confidence())
-            .sum()
+    return buckets.stream().mapToDouble(bucket -> bucket.areaFramePct() * bucket.confidence()).sum()
         / weight;
   }
 

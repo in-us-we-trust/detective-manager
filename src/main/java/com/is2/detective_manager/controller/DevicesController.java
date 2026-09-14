@@ -3,10 +3,10 @@ package com.is2.detective_manager.controller;
 import com.is2.detective_manager.exception.DetectiveException;
 import com.is2.detective_manager.exception.ExceptionContent;
 import com.is2.detective_manager.exception.ExceptionEnum;
-import com.is2.detective_manager.model.dto.*;
-import com.is2.detective_manager.model.generic.StandardResponse;
 import com.is2.detective_manager.mapper.TrackMapper;
+import com.is2.detective_manager.model.dto.*;
 import com.is2.detective_manager.model.entity.Track;
+import com.is2.detective_manager.model.generic.StandardResponse;
 import com.is2.detective_manager.service.DeviceService;
 import com.is2.detective_manager.service.TrackPersistenceService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -254,7 +254,6 @@ public class DevicesController {
 
     String imageUrl = trackPersistenceService.findMostSevereImageUrl(trackId).orElse(null);
 
-    return ResponseEntity.ok(
-        StandardResponse.of(trackMapper.toDetailDto(track, imageUrl)));
+    return ResponseEntity.ok(StandardResponse.of(trackMapper.toDetailDto(track, imageUrl)));
   }
 }

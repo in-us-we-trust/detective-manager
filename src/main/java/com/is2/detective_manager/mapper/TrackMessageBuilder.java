@@ -7,13 +7,11 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 /**
- * Construye la presentación de un track para la app: un CODE estable (para
- * mapear a íconos/colores) + un TITLE legible. Ambos salen de la MISMA decisión
- * por prioridad, así siempre son coherentes.
+ * Construye la presentación de un track para la app: un CODE estable (para mapear a íconos/colores)
+ * + un TITLE legible. Ambos salen de la MISMA decisión por prioridad, así siempre son coherentes.
  *
- * Es lógica de PRESENTACIÓN, independiente del RuleBasedDangerEvaluator.
- * Un track tiene varias señales a la vez; el code es UNA categoría que resume,
- * elegida por prioridad.
+ * <p>Es lógica de PRESENTACIÓN, independiente del RuleBasedDangerEvaluator. Un track tiene varias
+ * señales a la vez; el code es UNA categoría que resume, elegida por prioridad.
  */
 @Component
 public class TrackMessageBuilder {

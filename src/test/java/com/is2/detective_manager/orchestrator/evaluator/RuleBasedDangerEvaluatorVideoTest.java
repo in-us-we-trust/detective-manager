@@ -32,9 +32,7 @@ class RuleBasedDangerEvaluatorVideoTest {
     Assessment assessment =
         evaluator.evaluate(
             List.of(
-                Signal.PROLONGED_PRESENCE,
-                Signal.RETURNED_TO_PREVIOUS_POSITION,
-                Signal.LOITERING));
+                Signal.PROLONGED_PRESENCE, Signal.RETURNED_TO_PREVIOUS_POSITION, Signal.LOITERING));
 
     assertEquals(Severity.SOSPECHOSO, assessment.getSeverity());
     assertEquals("Permanencia prolongada con movimientos de ida y vuelta", assessment.getMessage());
@@ -56,10 +54,7 @@ class RuleBasedDangerEvaluatorVideoTest {
     Assessment weapon =
         evaluator.evaluate(
             List.of(
-                Signal.WEAPON_DETECTED,
-                Signal.THREAT,
-                Signal.UNKNOWN_PERSON,
-                Signal.LOITERING));
+                Signal.WEAPON_DETECTED, Signal.THREAT, Signal.UNKNOWN_PERSON, Signal.LOITERING));
     Assessment threat =
         evaluator.evaluate(List.of(Signal.THREAT, Signal.UNKNOWN_PERSON, Signal.LOITERING));
 
@@ -82,7 +77,8 @@ class RuleBasedDangerEvaluatorVideoTest {
             List.of(Signal.LOITERING),
             List.of(Signal.LOITERING, Signal.UNKNOWN_PERSON));
 
-    cases.forEach(signals -> assertNotEquals(Verdict.DANGER, evaluator.evaluate(signals).getVerdict()));
+    cases.forEach(
+        signals -> assertNotEquals(Verdict.DANGER, evaluator.evaluate(signals).getVerdict()));
   }
 
   @Test
@@ -92,9 +88,7 @@ class RuleBasedDangerEvaluatorVideoTest {
         Severity.SOSPECHOSO,
         "Permanencia prolongada con detención extensa");
     assertAssessment(
-        List.of(Signal.LOITERING),
-        Severity.SOSPECHOSO,
-        "Posible comportamiento de merodeo");
+        List.of(Signal.LOITERING), Severity.SOSPECHOSO, "Posible comportamiento de merodeo");
     assertAssessment(
         List.of(Signal.APPROACHING_CAMERA, Signal.UNKNOWN_PERSON),
         Severity.LLAMATIVO,

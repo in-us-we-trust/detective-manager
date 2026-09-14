@@ -19,7 +19,7 @@ public class TrackResponseDto {
   private String title; // mensaje legible para la app
   private UUID trackId;
   private UUID deviceId;
-  private String status;             // CREATED / CLOSED / ...
+  private String status; // CREATED / CLOSED / ...
   private String currentStep;
   private String accumulatedSignals; // CSV
   private String finalVerdict;

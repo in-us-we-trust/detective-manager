@@ -4,9 +4,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Severidad individual de cada señal (para rankear, ej. elegir la imagen más
- * peligrosa de un track). Es una aproximación por señal suelta, distinta de la
- * evaluación por reglas (que mira combinaciones). Se usa solo para ordenar.
+ * Severidad individual de cada señal (para rankear, ej. elegir la imagen más peligrosa de un
+ * track). Es una aproximación por señal suelta, distinta de la evaluación por reglas (que mira
+ * combinaciones). Se usa solo para ordenar.
  */
 public final class SignalSeverity {
 

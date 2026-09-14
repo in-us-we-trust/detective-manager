@@ -48,15 +48,14 @@ class VideoAnalysisStepTest {
     assertTrue(result.getSignals().contains(Signal.LOITERING));
     assertTrue(result.getSignals().contains(Signal.APPROACHING_CAMERA));
     assertTrue(result.getSignals().contains(Signal.FAST_APPROACH));
-    assertTrue(result.getData().get(VideoAnalysisStep.FEATURES_DATA_KEY) instanceof VideoBehaviorFeatures);
+    assertTrue(
+        result.getData().get(VideoAnalysisStep.FEATURES_DATA_KEY) instanceof VideoBehaviorFeatures);
   }
 
   @Test
   void execute_detectsSustainedDirectionChangesAndReturn() {
     List<VideoObservation> observations = new ArrayList<>();
-    double[][] sections = {
-      {0, 2, 20, 40}, {2.5, 4.5, 40, 20}, {5, 7, 20, 40}, {7.5, 9.5, 40, 20}
-    };
+    double[][] sections = {{0, 2, 20, 40}, {2.5, 4.5, 40, 20}, {5, 7, 20, 40}, {7.5, 9.5, 40, 20}};
     int frame = 0;
     for (double[] section : sections) {
       for (double timestamp = section[0]; timestamp <= section[1]; timestamp += 0.5) {
@@ -104,15 +103,7 @@ class VideoAnalysisStepTest {
       double jitter = sample % 2 == 0 ? 0.2 : -0.2;
       observations.add(observation(sample, timestamp, 1, 50 + jitter, 50, 10, 0.2, 0.95));
       observations.add(
-          observation(
-              100 + sample,
-              timestamp,
-              2,
-              20 + sample * 5,
-              50,
-              5 + sample * 3,
-              12,
-              0.10));
+          observation(100 + sample, timestamp, 2, 20 + sample * 5, 50, 5 + sample * 3, 12, 0.10));
     }
 
     Set<Signal> signals = Set.copyOf(execute(observations, 5).getSignals());

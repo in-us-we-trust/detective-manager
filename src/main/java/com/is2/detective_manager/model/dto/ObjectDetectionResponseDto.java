@@ -6,8 +6,8 @@ import java.util.Map;
 import lombok.Data;
 
 /**
- * Respuesta del ML de detección de objetos: /api/ml-service/v1/analysis/object-detection
- * La respuesta viene envuelta en un nodo "data". Solo nos interesan objects y counts.
+ * Respuesta del ML de detección de objetos: /api/ml-service/v1/analysis/object-detection La
+ * respuesta viene envuelta en un nodo "data". Solo nos interesan objects y counts.
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)

@@ -16,7 +16,9 @@ public class MockObjectRecognizer implements ObjectRecognizer {
   public ObjectDetectionResult detectObjects(byte[] image) {
     // TEMPORAL (prueba de paralelismo): delay para ver que corre en paralelo. QUITAR después.
     try {
-      log.info("[mock] object: INICIO análisis (5000 ms) en thread {}", Thread.currentThread().getName());
+      log.info(
+          "[mock] object: INICIO análisis (5000 ms) en thread {}",
+          Thread.currentThread().getName());
       Thread.sleep(5000);
       log.info("[mock] object: FIN análisis en thread {}", Thread.currentThread().getName());
     } catch (InterruptedException e) {
