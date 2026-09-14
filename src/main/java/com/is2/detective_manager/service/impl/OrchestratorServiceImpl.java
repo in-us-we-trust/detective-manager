@@ -52,7 +52,10 @@ public class OrchestratorServiceImpl implements OrchestratorService {
     UUID requestId = UUID.randomUUID();
     log.info(
         "Procesando chunk requestId={} trackId={} device={} mediaType={}",
-        requestId, trackId, deviceId, mediaType);
+        requestId,
+        trackId,
+        deviceId,
+        mediaType);
 
     Track track = trackPersistenceService.findOrCreateTrack(trackId, deviceId);
 
@@ -103,8 +106,13 @@ public class OrchestratorServiceImpl implements OrchestratorService {
       }
       chunkSignals.addAll(outcome.signals());
       trackPersistenceService.saveAssessment(
-          track, requestId, outcome.stepName(), outcome.signals(), outcome.durationMs(),
-          mediaType, mediaUrl);
+          track,
+          requestId,
+          outcome.stepName(),
+          outcome.signals(),
+          outcome.durationMs(),
+          mediaType,
+          mediaUrl);
     }
 
     // === FASE 2: CONSOLIDACIÓN (protegida, con optimistic retry) ===
@@ -128,7 +136,8 @@ public class OrchestratorServiceImpl implements OrchestratorService {
       long startedAt = System.currentTimeMillis();
       StepResult result = step.execute(context);
       long durationMs = System.currentTimeMillis() - startedAt;
-      log.info("Step {} ejecutado ({} ms) -> signals={}", stepName, durationMs, result.getSignals());
+      log.info(
+          "Step {} ejecutado ({} ms) -> signals={}", stepName, durationMs, result.getSignals());
       return new StepOutcome(stepName, result.getSignals(), durationMs);
     } catch (Exception e) {
       log.error("Step {} falló; se continúa con los demás", stepName, e);
@@ -151,10 +160,13 @@ public class OrchestratorServiceImpl implements OrchestratorService {
         lastConflict = conflict;
         log.warn(
             "Conflicto de versión consolidando track {} (intento {}/{}). Reintentando.",
-            trackId, attempt, MAX_CONSOLIDATION_ATTEMPTS);
+            trackId,
+            attempt,
+            MAX_CONSOLIDATION_ATTEMPTS);
       }
     }
-    log.error("No se pudo consolidar el track {} tras {} intentos", trackId, MAX_CONSOLIDATION_ATTEMPTS);
+    log.error(
+        "No se pudo consolidar el track {} tras {} intentos", trackId, MAX_CONSOLIDATION_ATTEMPTS);
     throw lastConflict;
   }
 

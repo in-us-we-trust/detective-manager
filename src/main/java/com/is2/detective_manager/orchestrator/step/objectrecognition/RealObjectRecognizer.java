@@ -17,8 +17,8 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 /**
- * Real: llama al ML /api/ml-service/v1/analysis/object-detection con la imagen
- * en base64 (JSON). Devuelve los objetos detectados (label + confidence) y counts.
+ * Real: llama al ML /api/ml-service/v1/analysis/object-detection con la imagen en base64 (JSON).
+ * Devuelve los objetos detectados (label + confidence) y counts.
  */
 @Slf4j
 @Component

@@ -4,8 +4,8 @@ import com.is2.detective_manager.model.entity.ChunkType;
 import java.util.Set;
 
 /**
- * Un paso del pipeline de análisis. El orden lo define el AnalysisPipeline,
- * no el step. Cada step declara qué input necesita; si ese input no llegó, se saltea.
+ * Un paso del pipeline de análisis. El orden lo define el AnalysisPipeline, no el step. Cada step
+ * declara qué input necesita; si ese input no llegó, se saltea.
  */
 public interface AnalysisStep {
 

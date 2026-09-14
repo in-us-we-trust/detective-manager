@@ -6,9 +6,9 @@ import lombok.Builder;
 import lombok.Value;
 
 /**
- * Una regla del evaluador. Matchea si las señales acumuladas CONTIENEN todas las
- * de 'requires' (sin importar qué otras haya). Las reglas se evalúan en orden y
- * gana la primera que matchea (jerarquía = prioridad).
+ * Una regla del evaluador. Matchea si las señales acumuladas CONTIENEN todas las de 'requires' (sin
+ * importar qué otras haya). Las reglas se evalúan en orden y gana la primera que matchea (jerarquía
+ * = prioridad).
  */
 @Value
 @Builder

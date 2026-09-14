@@ -25,5 +25,4 @@ public class EventChunkResponseDto {
 
   @Schema(description = "Mensaje de la conclusión.", example = "La persona está armada")
   private String message;
-
 }

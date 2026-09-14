@@ -12,8 +12,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * Step 1 del diagrama: "¿Es la imagen reconocida por las cargadas del timbre?".
- * El step es siempre este; el colaborador FaceRecognizer decide real vs mock.
+ * Step 1 del diagrama: "¿Es la imagen reconocida por las cargadas del timbre?". El step es siempre
+ * este; el colaborador FaceRecognizer decide real vs mock.
  */
 @Component
 @RequiredArgsConstructor

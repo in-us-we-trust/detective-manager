@@ -10,8 +10,8 @@ import org.springframework.context.annotation.Configuration;
 public class AsyncConfig {
 
   /**
-   * Pool para el análisis paralelo. Los steps corren acá (llamadas al ML, lentas).
-   * Se dimensiona pensando en (steps por chunk) x (requests concurrentes esperados).
+   * Pool para el análisis paralelo. Los steps corren acá (llamadas al ML, lentas). Se dimensiona
+   * pensando en (steps por chunk) x (requests concurrentes esperados).
    */
   @Bean(name = "analysisExecutor", destroyMethod = "shutdown")
   public ExecutorService analysisExecutor() {

@@ -1,11 +1,6 @@
 package com.is2.detective_manager;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -13,17 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.is2.detective_manager.client.CloudinaryStorageClient;
-import com.is2.detective_manager.client.MlServiceApiClient;
-import com.is2.detective_manager.client.NotificationPublisher;
-import com.is2.detective_manager.model.dto.FaceRecognitionClosestMatchDto;
-import com.is2.detective_manager.model.dto.FaceRecognitionResultDto;
-import com.is2.detective_manager.model.dto.GeneratedFaceEmbeddingDto;
 import com.is2.detective_manager.repository.DeviceRepository;
-import com.is2.detective_manager.repository.FaceEmbeddingRepository;
-import com.is2.detective_manager.repository.PersonRepository;
-import com.jayway.jsonpath.JsonPath;
-import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,7 +17,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
@@ -43,25 +27,14 @@ public class DevicesControllerIntegrationTest {
   @Autowired private MockMvc mockMvc;
   @Autowired private DbTestUtils dbUtils;
   @Autowired private DeviceRepository deviceRepository;
-  @Autowired private FaceEmbeddingRepository faceEmbeddingRepository;
-  @Autowired private PersonRepository personRepository;
-
-  @MockitoBean private MlServiceApiClient mlServiceApiClient;
-  @MockitoBean private NotificationPublisher notificationPublisher;
-  @MockitoBean private CloudinaryStorageClient cloudinaryStorageClient;
 
   private static final String DEVICE_ID = "123e4567-e89b-12d3-a456-426614174000";
-  private static final String SECOND_DEVICE_ID = "223e4567-e89b-12d3-a456-426614174000";
-  private static final String MOCK_IMAGE_URL =
-      "https://firebasestorage.googleapis.com/v0/b/test-bucket/o/test.jpg?alt=media";
-  private static final String VALID_BASE64_IMAGE = "dGVzdGltYWdl";
   private static final String LAST_BOOT = "2024-01-01T10:00:00Z";
   private static final String LAST_SEEN = "2024-01-01T11:00:00Z";
 
   @BeforeEach
   void setUp() {
     dbUtils.clearTables();
-    when(cloudinaryStorageClient.uploadEventImage(anyString(), any())).thenReturn(MOCK_IMAGE_URL);
   }
 
   @AfterEach
@@ -412,124 +385,6 @@ public class DevicesControllerIntegrationTest {
   }
 
   @Test
-  void getDeviceEvents_existingDeviceWithEvents_returnsOk() throws Exception {
-    createEvent(DEVICE_ID, "motion");
-
-    mockMvc
-        .perform(get("/api/detective-manager/v1/devices/{deviceId}/events", DEVICE_ID))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.length()").value(1))
-        .andExpect(jsonPath("$.data[0].deviceId").value(DEVICE_ID))
-        .andExpect(jsonPath("$.data[0].eventType").value("motion"));
-  }
-
-  @Test
-  void getDeviceEvents_existingDeviceWithoutEvents_returnsEmptyList() throws Exception {
-    mockMvc
-        .perform(get("/api/detective-manager/v1/devices/{deviceId}/events", DEVICE_ID))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.length()").value(0));
-  }
-
-  @Test
-  void getDeviceEvents_filtersOnlyRequestedDeviceEvents() throws Exception {
-    createEvent(DEVICE_ID, "motion");
-    createEvent(SECOND_DEVICE_ID, "bell");
-
-    mockMvc
-        .perform(get("/api/detective-manager/v1/devices/{deviceId}/events", DEVICE_ID))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.length()").value(1))
-        .andExpect(jsonPath("$.data[0].deviceId").value(DEVICE_ID))
-        .andExpect(jsonPath("$.data[0].eventType").value("motion"));
-  }
-
-  @Test
-  void getDeviceEvents_invalidDeviceId_returnsBadRequest() throws Exception {
-    mockMvc
-        .perform(get("/api/detective-manager/v1/devices/{deviceId}/events", "invalid-uuid"))
-        .andExpect(status().isBadRequest());
-  }
-
-  @Test
-  void reportEvent_callsFaceRecognitionWithKnownDeviceEmbeddings() throws Exception {
-    when(mlServiceApiClient.generateFaceEmbedding(any()))
-        .thenReturn(
-            new GeneratedFaceEmbeddingDto(List.of(0.1, 0.2), "ArcFace", "retinaface"),
-            new GeneratedFaceEmbeddingDto(List.of(0.3, 0.4), "ArcFace", "retinaface"),
-            new GeneratedFaceEmbeddingDto(List.of(0.9, 1.0), "ArcFace", "retinaface"));
-    when(mlServiceApiClient.recognizeFace(any()))
-        .thenReturn(
-            FaceRecognitionResultDto.builder()
-                .known(false)
-                .threshold(0.4)
-                .distance(0.61)
-                .distanceMetric("cosine")
-                .closestMatch(
-                    FaceRecognitionClosestMatchDto.builder()
-                        .embeddingId(1L)
-                        .personId(UUID.fromString("00000000-0000-0000-0000-000000000001"))
-                        .personName("Mateo")
-                        .build())
-                .modelName("ArcFace")
-                .detectorBackend("retinaface")
-                .build());
-
-    createFaceEmbedding(DEVICE_ID, "Mateo");
-    createFaceEmbedding(DEVICE_ID, "Another person");
-    createFaceEmbedding(SECOND_DEVICE_ID, "Other device person");
-
-    mockMvc
-        .perform(
-            post("/api/detective-manager/v1/devices/{deviceId}/events", DEVICE_ID)
-                .contentType("application/json")
-                .content(
-                    """
-                                    {
-                                      "image": "%s"
-                                    }
-                                    """
-                        .formatted(VALID_BASE64_IMAGE)))
-        .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.data.isIntruder").value(true))
-        .andExpect(jsonPath("$.data.eventType").value("INTRUDER"))
-        .andExpect(jsonPath("$.data.faceRecognition.known").value(false))
-        .andExpect(jsonPath("$.data.faceRecognition.threshold").value(0.4))
-        .andExpect(jsonPath("$.data.faceRecognition.distance").value(0.61))
-        .andExpect(jsonPath("$.data.faceRecognition.distance_metric").value("cosine"))
-        .andExpect(jsonPath("$.data.faceRecognition.closest_match.person_name").value("Mateo"))
-        .andExpect(jsonPath("$.data.faceRecognition.model_name").value("ArcFace"))
-        .andExpect(jsonPath("$.data.faceRecognition.detector_backend").value("retinaface"));
-
-    verify(mlServiceApiClient, never()).analyzeIntruder(any());
-    verify(mlServiceApiClient)
-        .recognizeFace(
-            org.mockito.ArgumentMatchers.argThat(
-                request ->
-                    VALID_BASE64_IMAGE.equals(request.getImage())
-                        && request.getEmbeddings().size() == 2
-                        && request.getEmbeddings().stream()
-                            .allMatch(
-                                embedding -> DEVICE_ID.equals(embedding.getDeviceId().toString()))
-                        && request.getEmbeddings().stream()
-                            .noneMatch(
-                                embedding ->
-                                    embedding.getPersonName().equals("Other device person"))));
-    verify(notificationPublisher)
-        .publishIntruderDetected(
-            org.mockito.ArgumentMatchers.argThat(
-                message ->
-                    DEVICE_ID.equals(message.getDeviceId().toString())
-                        && MOCK_IMAGE_URL.equals(message.getImageUrl())
-                        && "high".equals(message.getSeverity())
-                        && "Intruder detected".equals(message.getTitle())
-                        && "An unknown person was detected.".equals(message.getMessage())
-                        && message.getTime() != null
-                        && message.getTime().endsWith("Z")
-                        && message.getTags().contains("doorbell")));
-  }
-
-  @Test
   void deleteDevice_existingDevice_returnsNoContent() throws Exception {
     createDevice(DEVICE_ID);
 
@@ -599,51 +454,5 @@ public class DevicesControllerIntegrationTest {
                                     """
                         .formatted(deviceId, LAST_SEEN, LAST_BOOT)))
         .andExpect(status().isCreated());
-  }
-
-  private void createEvent(String deviceId, String eventType) throws Exception {
-    when(mlServiceApiClient.recognizeFace(any()))
-        .thenReturn(FaceRecognitionResultDto.builder().known(true).build());
-
-    mockMvc
-        .perform(
-            post("/api/detective-manager/v1/events")
-                .contentType("application/json")
-                .header("device_id", deviceId)
-                .content(
-                    """
-                                    {
-                                      "image": "%s",
-                                      "type": "%s"
-                                    }
-                                    """
-                        .formatted(VALID_BASE64_IMAGE, eventType)))
-        .andExpect(status().isCreated());
-  }
-
-  private String createFaceEmbedding(String personName) throws Exception {
-    return createFaceEmbedding(DEVICE_ID, personName);
-  }
-
-  private String createFaceEmbedding(String deviceId, String personName) throws Exception {
-    String response =
-        mockMvc
-            .perform(
-                post("/api/detective-manager/v1/devices/{deviceId}/persons", deviceId)
-                    .contentType("application/json")
-                    .content(
-                        """
-                                            {
-                                              "name": "%s",
-                                              "images": ["%s"]
-                                            }
-                                            """
-                            .formatted(personName, VALID_BASE64_IMAGE)))
-            .andExpect(status().isCreated())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-
-    return (JsonPath.read(response, "$.data.id"));
   }
 }

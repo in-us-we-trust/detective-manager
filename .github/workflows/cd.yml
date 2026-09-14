@@ -58,9 +58,11 @@ jobs:
             --cpu 1 \
             --min-instances 0 \
             --max-instances 1 \
-            --concurrency 20 \
+            --concurrency 1 \
             --cpu-throttling \
             --set-env-vars "SPRING_PROFILES_ACTIVE=prod" \
+            --set-env-vars "MULTIPART_MAX_FILE_SIZE=30MB" \
+            --set-env-vars "MULTIPART_MAX_REQUEST_SIZE=31MB" \
             --set-env-vars "DB_URL=${{ secrets.DB_URL }}" \
             --set-env-vars "DB_USERNAME=${{ secrets.DB_USERNAME }}" \
             --set-env-vars "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" \

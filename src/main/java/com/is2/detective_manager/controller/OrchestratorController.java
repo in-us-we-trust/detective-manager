@@ -33,10 +33,7 @@ public class OrchestratorController {
       throws IOException {
 
     log.info(
-        "Chunk recibido: trackId={} mediaType={} bytes={}",
-        trackId,
-        mediaType,
-        file.getSize());
+        "Chunk recibido: trackId={} mediaType={} bytes={}", trackId, mediaType, file.getSize());
 
     EventChunkResponseDto response =
         orchestratorService.handleEvent(trackId, deviceId, mediaType, file.getBytes());

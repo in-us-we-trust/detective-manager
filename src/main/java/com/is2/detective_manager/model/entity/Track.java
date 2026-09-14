@@ -10,9 +10,9 @@ import java.util.UUID;
 import lombok.Data;
 
 /**
- * Un track: la visita al timbre que agrupa los assessments de cada step.
- * El id es el trackId que manda el timbre en su primer envío (no autogenerado).
- * El estado sobrevive entre requests: cada chunk que llega continúa desde acá.
+ * Un track: la visita al timbre que agrupa los assessments de cada step. El id es el trackId que
+ * manda el timbre en su primer envío (no autogenerado). El estado sobrevive entre requests: cada
+ * chunk que llega continúa desde acá.
  */
 @Entity
 @Table(name = "dm_tracks")
