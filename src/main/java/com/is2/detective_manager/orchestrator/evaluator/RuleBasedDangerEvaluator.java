@@ -31,6 +31,38 @@ public class RuleBasedDangerEvaluator implements DangerEvaluator {
               .verdict(Verdict.DANGER)
               .message("Amenaza verbal detectada")
               .build(),
+          Rule.builder()
+              .requires(EnumSet.of(Signal.LOITERING, Signal.UNKNOWN_PERSON))
+              .severity(Severity.SOSPECHOSO)
+              .verdict(Verdict.CONTINUE)
+              .message("Persona desconocida con posible comportamiento de merodeo")
+              .build(),
+          Rule.builder()
+              .requires(EnumSet.of(Signal.FAST_APPROACH, Signal.UNKNOWN_PERSON))
+              .severity(Severity.SOSPECHOSO)
+              .verdict(Verdict.CONTINUE)
+              .message("Persona desconocida acercándose rápidamente")
+              .build(),
+          Rule.builder()
+              .requires(
+                  EnumSet.of(
+                      Signal.PROLONGED_PRESENCE, Signal.RETURNED_TO_PREVIOUS_POSITION))
+              .severity(Severity.SOSPECHOSO)
+              .verdict(Verdict.CONTINUE)
+              .message("Permanencia prolongada con movimientos de ida y vuelta")
+              .build(),
+          Rule.builder()
+              .requires(EnumSet.of(Signal.PROLONGED_PRESENCE, Signal.LONG_STOP))
+              .severity(Severity.SOSPECHOSO)
+              .verdict(Verdict.CONTINUE)
+              .message("Permanencia prolongada con detención extensa")
+              .build(),
+          Rule.builder()
+              .requires(EnumSet.of(Signal.LOITERING))
+              .severity(Severity.SOSPECHOSO)
+              .verdict(Verdict.CONTINUE)
+              .message("Posible comportamiento de merodeo")
+              .build(),
           // Persona reconocida Y sin objetos amenazantes: se confirma seguro y se concluye.
           Rule.builder()
               .requires(EnumSet.of(Signal.KNOWN_PERSON, Signal.NO_THREAT_OBJECT))
@@ -55,6 +87,18 @@ public class RuleBasedDangerEvaluator implements DangerEvaluator {
               .severity(Severity.SOSPECHOSO)
               .verdict(Verdict.CONTINUE)
               .message("Se detectaron varias personas en la puerta")
+              .build(),
+          Rule.builder()
+              .requires(EnumSet.of(Signal.APPROACHING_CAMERA, Signal.UNKNOWN_PERSON))
+              .severity(Severity.LLAMATIVO)
+              .verdict(Verdict.CONTINUE)
+              .message("Persona desconocida acercándose")
+              .build(),
+          Rule.builder()
+              .requires(EnumSet.of(Signal.PROLONGED_PRESENCE))
+              .severity(Severity.LLAMATIVO)
+              .verdict(Verdict.CONTINUE)
+              .message("Persona presente durante un período prolongado")
               .build(),
           Rule.builder()
               .requires(EnumSet.of(Signal.UNKNOWN_PERSON))

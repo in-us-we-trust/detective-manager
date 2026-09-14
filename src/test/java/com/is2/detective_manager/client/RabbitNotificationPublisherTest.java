@@ -15,9 +15,6 @@ class RabbitNotificationPublisherTest {
 
   private static final String EXCHANGE = "notifications.exchange";
   private static final String ROUTING_KEY = "notifications.intruder";
-  private static final String ASSESSMENTS_EXCHANGE = "assessments.exchange";
-  private static final String ASSESSMENTS_ROUTING_KEY = "assessments.step";
-
   private final RabbitTemplate rabbitTemplate = org.mockito.Mockito.mock(RabbitTemplate.class);
   private final IntruderNotificationMessageDto message =
       IntruderNotificationMessageDto.builder()
@@ -34,15 +31,7 @@ class RabbitNotificationPublisherTest {
         .when(rabbitTemplate)
         .convertAndSend(EXCHANGE, ROUTING_KEY, message);
 
-    var publisher =
-        new RabbitNotificationPublisher(
-            rabbitTemplate,
-            EXCHANGE,
-            ROUTING_KEY,
-            ASSESSMENTS_EXCHANGE,
-            ASSESSMENTS_ROUTING_KEY,
-            3,
-            0);
+    var publisher = new RabbitNotificationPublisher(rabbitTemplate, EXCHANGE, ROUTING_KEY, 3, 0);
 
     publisher.publishIntruderDetected(message);
 
@@ -55,15 +44,7 @@ class RabbitNotificationPublisherTest {
         .when(rabbitTemplate)
         .convertAndSend(EXCHANGE, ROUTING_KEY, message);
 
-    var publisher =
-        new RabbitNotificationPublisher(
-            rabbitTemplate,
-            EXCHANGE,
-            ROUTING_KEY,
-            ASSESSMENTS_EXCHANGE,
-            ASSESSMENTS_ROUTING_KEY,
-            3,
-            0);
+    var publisher = new RabbitNotificationPublisher(rabbitTemplate, EXCHANGE, ROUTING_KEY, 3, 0);
 
     assertThrows(DetectiveException.class, () -> publisher.publishIntruderDetected(message));
     verify(rabbitTemplate, times(3)).convertAndSend(EXCHANGE, ROUTING_KEY, message);

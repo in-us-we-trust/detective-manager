@@ -4,6 +4,7 @@ import com.is2.detective_manager.model.entity.ChunkType;
 import com.is2.detective_manager.orchestrator.step.conversationanalysis.ConversationAnalysisStep;
 import com.is2.detective_manager.orchestrator.step.facerecognition.FaceRecognitionStep;
 import com.is2.detective_manager.orchestrator.step.objectrecognition.ObjectRecognitionStep;
+import com.is2.detective_manager.orchestrator.step.videoanalysis.VideoAnalysisStep;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -22,9 +23,12 @@ public class AnalysisPipeline {
   private final ObjectRecognitionStep objectRecognitionStep;
   // --- AUDIO ---
   private final ConversationAnalysisStep conversationAnalysisStep;
+  // --- VIDEO ---
+  private final VideoAnalysisStep videoAnalysisStep;
 
   public List<AnalysisStep> steps() {
-    return List.of(faceRecognitionStep, objectRecognitionStep, conversationAnalysisStep);
+    return List.of(
+        faceRecognitionStep, objectRecognitionStep, conversationAnalysisStep, videoAnalysisStep);
   }
 
   /** Todos los steps que soportan este mediaType, en orden. */

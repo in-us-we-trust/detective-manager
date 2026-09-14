@@ -28,17 +28,33 @@ public class RestTemplateConfig {
 
   private ClientHttpRequestInterceptor loggingInterceptor() {
     return (HttpRequest request, byte[] body, ClientHttpRequestExecution execution) -> {
-      log.info(
-          "[HTTP OUT] {} {} | body: {}",
-          request.getMethod(),
-          request.getURI(),
-          new String(body, StandardCharsets.UTF_8));
+      boolean isVideoAnalysis = request.getURI().getPath().endsWith("/analysis/video");
+      if (isVideoAnalysis) {
+        log.info(
+            "[HTTP OUT] {} {} | multipart body omitted ({} bytes)",
+            request.getMethod(),
+            request.getURI(),
+            body.length);
+      } else {
+        log.info(
+            "[HTTP OUT] {} {} | body: {}",
+            request.getMethod(),
+            request.getURI(),
+            new String(body, StandardCharsets.UTF_8));
+      }
       ClientHttpResponse response = execution.execute(request, body);
       byte[] responseBody = response.getBody().readAllBytes();
-      log.info(
-          "[HTTP IN] status: {} | body: {}",
-          response.getStatusCode(),
-          new String(responseBody, StandardCharsets.UTF_8));
+      if (isVideoAnalysis) {
+        log.info(
+            "[HTTP IN] status: {} | video analysis body omitted ({} bytes)",
+            response.getStatusCode(),
+            responseBody.length);
+      } else {
+        log.info(
+            "[HTTP IN] status: {} | body: {}",
+            response.getStatusCode(),
+            new String(responseBody, StandardCharsets.UTF_8));
+      }
       return response;
     };
   }

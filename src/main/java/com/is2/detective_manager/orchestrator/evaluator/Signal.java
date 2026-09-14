@@ -26,5 +26,14 @@ public enum Signal {
   VERIFICATION_AVOIDANCE, // evita mostrar documentación / verificarse
   THREAT,                 // amenaza explícita
   CODE_REQUEST,           // pide un código
-  MONEY_REQUEST           // pide dinero
+  MONEY_REQUEST,          // pide dinero
+
+  // --- Análisis de comportamiento (video) ---
+  PROLONGED_PRESENCE,            // presencia estable durante un período prolongado
+  LONG_STOP,                     // período continuo extenso con poca movilidad
+  REPEATED_DIRECTION_CHANGES,    // cambios significativos y sostenidos de dirección
+  RETURNED_TO_PREVIOUS_POSITION, // se alejó y volvió a una región recorrida
+  APPROACHING_CAMERA,            // tendencia sostenida de acercamiento
+  FAST_APPROACH,                 // acercamiento sostenido a velocidad alta
+  LOITERING                      // presencia prolongada + otro patrón de merodeo
 }
