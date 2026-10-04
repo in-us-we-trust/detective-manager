@@ -1,6 +1,7 @@
 package com.is2.detective_manager.model.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -25,4 +26,10 @@ public class EventChunkResponseDto {
 
   @Schema(description = "Mensaje de la conclusión.", example = "La persona está armada")
   private String message;
+
+  @Schema(
+      description =
+          "Información adicional flexible del chunk. En IMAGE puede incluir personName cuando la persona es conocida.",
+      example = "{\"personName\":\"Juan Pérez\"}")
+  private Map<String, Object> additionalInformation;
 }

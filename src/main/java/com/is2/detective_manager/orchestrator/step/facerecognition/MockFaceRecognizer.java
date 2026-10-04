@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 public class MockFaceRecognizer implements FaceRecognizer {
 
   @Override
-  public boolean isKnown(byte[] image, UUID deviceId) {
+  public FaceRecognitionOutcome recognize(byte[] image, UUID deviceId) {
     // TEMPORAL (prueba de paralelismo): delay para ver que corre en paralelo. QUITAR después.
     try {
       log.info(
@@ -23,6 +23,6 @@ public class MockFaceRecognizer implements FaceRecognizer {
       Thread.currentThread().interrupt();
     }
     log.info("[mock] Reconocimiento facial simulado -> known=false");
-    return false;
+    return FaceRecognitionOutcome.unknown();
   }
 }

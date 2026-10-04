@@ -1,5 +1,6 @@
 package com.is2.detective_manager.model.dto;
 
+import com.is2.detective_manager.model.entity.PersonStatus;
 import java.util.List;
 import java.util.UUID;
 import lombok.Data;
@@ -11,5 +12,6 @@ public class PersonResponseDto {
   private UUID deviceId;
   private String name;
   private String role;
+  private PersonStatus status;
   private List<PersonImageResponseDto> images;
 }

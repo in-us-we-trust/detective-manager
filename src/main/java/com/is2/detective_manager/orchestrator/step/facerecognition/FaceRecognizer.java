@@ -8,5 +8,5 @@ import java.util.UUID;
  */
 public interface FaceRecognizer {
 
-  boolean isKnown(byte[] image, UUID deviceId);
+  FaceRecognitionOutcome recognize(byte[] image, UUID deviceId);
 }

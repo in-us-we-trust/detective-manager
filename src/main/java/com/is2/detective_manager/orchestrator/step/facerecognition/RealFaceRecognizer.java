@@ -3,8 +3,10 @@ package com.is2.detective_manager.orchestrator.step.facerecognition;
 import com.is2.detective_manager.client.MlServiceApiClient;
 import com.is2.detective_manager.mapper.PersonMapper;
 import com.is2.detective_manager.model.dto.FaceEmbeddingResponseDto;
+import com.is2.detective_manager.model.dto.FaceRecognitionClosestMatchDto;
 import com.is2.detective_manager.model.dto.FaceRecognitionResultDto;
 import com.is2.detective_manager.model.dto.MlFaceRecognitionRequestDto;
+import com.is2.detective_manager.model.entity.PersonStatus;
 import com.is2.detective_manager.repository.FaceEmbeddingRepository;
 import java.util.Base64;
 import java.util.List;
@@ -15,8 +17,8 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 /**
- * Real: reconoce el rostro contra las caras cargadas del device. Trae los embeddings del device de
- * la DB, los manda junto con la imagen al ML, y devuelve si la persona es conocida.
+ * Real: reconoce el rostro contra las caras conocidas del device. Trae los embeddings KNOWN, los
+ * manda junto con la imagen al ML, y devuelve si la persona es conocida y su nombre.
  */
 @Slf4j
 @Component
@@ -29,23 +31,27 @@ public class RealFaceRecognizer implements FaceRecognizer {
   private final PersonMapper personMapper;
 
   @Override
-  public boolean isKnown(byte[] image, UUID deviceId) {
-    // 1) Traer los embeddings (caras conocidas) del device.
+  public FaceRecognitionOutcome recognize(byte[] image, UUID deviceId) {
     List<FaceEmbeddingResponseDto> embeddings =
-        faceEmbeddingRepository.findAllByPerson_DeviceIdOrderByCreatedAtAscIdAsc(deviceId).stream()
+        faceEmbeddingRepository
+            .findAllByPerson_DeviceIdAndPerson_StatusOrderByCreatedAtAscIdAsc(
+                deviceId, PersonStatus.KNOWN)
+            .stream()
             .map(personMapper::toResponseDto)
             .toList();
 
     log.info("Reconocimiento facial para device {} con {} embeddings", deviceId, embeddings.size());
 
-    // 2) Imagen a base64 (el ML de face espera base64, no bytes).
     String base64Image = Base64.getEncoder().encodeToString(image);
-
-    // 3) Llamar al ML con imagen + embeddings.
     MlFaceRecognitionRequestDto request = new MlFaceRecognitionRequestDto(base64Image, embeddings);
     FaceRecognitionResultDto result = mlServiceApiClient.recognizeFace(request);
 
-    // 4) Devolver si es conocida.
-    return Boolean.TRUE.equals(result.getKnown());
+    if (result == null || !Boolean.TRUE.equals(result.getKnown())) {
+      return FaceRecognitionOutcome.unknown();
+    }
+
+    FaceRecognitionClosestMatchDto closestMatch = result.getClosestMatch();
+    String personName = closestMatch != null ? closestMatch.getPersonName() : null;
+    return FaceRecognitionOutcome.known(personName);
   }
 }

@@ -8,6 +8,7 @@ import com.is2.detective_manager.mapper.PersonMapper;
 import com.is2.detective_manager.model.dto.*;
 import com.is2.detective_manager.model.entity.FaceEmbedding;
 import com.is2.detective_manager.model.entity.Person;
+import com.is2.detective_manager.model.entity.PersonStatus;
 import com.is2.detective_manager.repository.FaceEmbeddingRepository;
 import com.is2.detective_manager.repository.PersonRepository;
 import com.is2.detective_manager.service.PersonService;
@@ -35,7 +36,8 @@ public class PersonServiceImpl implements PersonService {
     log.info("Fetching all face embeddings for device {}", deviceId);
 
     return faceEmbeddingRepository
-        .findAllByPerson_DeviceIdOrderByCreatedAtAscIdAsc(deviceId)
+        .findAllByPerson_DeviceIdAndPerson_StatusOrderByCreatedAtAscIdAsc(
+            deviceId, PersonStatus.KNOWN)
         .stream()
         .map(personMapper::toResponseDto)
         .toList();
@@ -67,7 +69,6 @@ public class PersonServiceImpl implements PersonService {
 
     for (String image : request.getImages()) {
       String imageUrl = cloudinaryStorageClient.uploadEventImage(image, deviceId);
-
       createEmbedding(person, image, imageUrl);
     }
 
@@ -78,7 +79,6 @@ public class PersonServiceImpl implements PersonService {
   }
 
   private FaceEmbedding createEmbedding(Person person, String image, String imageUrl) {
-
     GeneratedFaceEmbeddingDto generated =
         mlServiceApiClient.generateFaceEmbedding(new MlFaceEmbeddingRequestDto(image));
 
@@ -150,7 +150,8 @@ public class PersonServiceImpl implements PersonService {
             .orElseThrow(
                 () -> new DetectiveException(ExceptionEnum.IMAGE_NOT_FOUND, "Image not found"));
 
-    if (!embedding.getPerson().getId().equals(personId)
+    if (embedding.getPerson() == null
+        || !embedding.getPerson().getId().equals(personId)
         || !embedding.getPerson().getDeviceId().equals(deviceId)) {
       throw new DetectiveException(ExceptionEnum.NOT_ALLOWED_IMAGE_ACTION, "Invalid access");
     }
@@ -177,18 +178,44 @@ public class PersonServiceImpl implements PersonService {
     return toResponseWithImages(deviceId, person);
   }
 
+  @Override
+  public void saveOrphanEmbeddingIfPossible(UUID deviceId, String image, String imageUrl) {
+    try {
+      GeneratedFaceEmbeddingDto generated =
+          mlServiceApiClient.generateFaceEmbedding(new MlFaceEmbeddingRequestDto(image));
+
+      if (!isPersistableEmbedding(generated)) {
+        log.warn("ML service returned invalid embedding for orphan - skipping persistence");
+        return;
+      }
+
+      FaceEmbedding embedding = personMapper.toOrphanEntity(deviceId, generated, imageUrl);
+      faceEmbeddingRepository.save(embedding);
+      log.info("Orphan face embedding saved for device {}", deviceId);
+    } catch (Exception e) {
+      log.warn(
+          "Failed to generate/save orphan face embedding for device {}. Continuing without it.",
+          deviceId,
+          e);
+    }
+  }
+
   private void validateGeneratedEmbedding(GeneratedFaceEmbeddingDto generated) {
-    if (generated == null
-        || generated.getEmbedding() == null
-        || generated.getEmbedding().isEmpty()
-        || generated.getModelName() == null
-        || generated.getModelName().isBlank()
-        || generated.getDetectorBackend() == null
-        || generated.getDetectorBackend().isBlank()) {
+    if (!isPersistableEmbedding(generated)) {
       throw new DetectiveException(
           ExceptionEnum.ML_SERVICE_ERROR,
           "The ML service returned an invalid face embedding response.");
     }
+  }
+
+  private boolean isPersistableEmbedding(GeneratedFaceEmbeddingDto generated) {
+    return generated != null
+        && generated.getEmbedding() != null
+        && !generated.getEmbedding().isEmpty()
+        && generated.getModelName() != null
+        && !generated.getModelName().isBlank()
+        && generated.getDetectorBackend() != null
+        && !generated.getDetectorBackend().isBlank();
   }
 
   private PersonResponseDto toResponseWithImages(UUID deviceId, Person person) {
