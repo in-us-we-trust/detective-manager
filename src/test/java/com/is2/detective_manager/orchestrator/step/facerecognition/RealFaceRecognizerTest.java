@@ -10,13 +10,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.is2.detective_manager.client.MlServiceApiClient;
-import com.is2.detective_manager.mapper.PersonMapper;
 import com.is2.detective_manager.model.dto.FaceEmbeddingResponseDto;
 import com.is2.detective_manager.model.dto.FaceRecognitionClosestMatchDto;
 import com.is2.detective_manager.model.dto.FaceRecognitionResultDto;
-import com.is2.detective_manager.model.entity.FaceEmbedding;
-import com.is2.detective_manager.model.entity.PersonStatus;
-import com.is2.detective_manager.repository.FaceEmbeddingRepository;
+import com.is2.detective_manager.service.PersonService;
 import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
@@ -34,19 +31,14 @@ class RealFaceRecognizerTest {
   private static final byte[] IMAGE = "image".getBytes();
 
   @Mock private MlServiceApiClient mlServiceApiClient;
-  @Mock private FaceEmbeddingRepository faceEmbeddingRepository;
-  @Mock private PersonMapper personMapper;
+  @Mock private PersonService personService;
   @InjectMocks private RealFaceRecognizer recognizer;
 
   @Test
   void recognize_knownPersonReturnsNameFromTheSameMlResponse() {
-    FaceEmbedding embedding = new FaceEmbedding();
     FaceEmbeddingResponseDto dto =
         FaceEmbeddingResponseDto.builder().personName("Juan Pérez").build();
-    when(faceEmbeddingRepository.findAllByPerson_DeviceIdAndPerson_StatusOrderByCreatedAtAscIdAsc(
-            DEVICE_ID, PersonStatus.KNOWN))
-        .thenReturn(List.of(embedding));
-    when(personMapper.toResponseDto(embedding)).thenReturn(dto);
+    when(personService.getFaceEmbeddings(DEVICE_ID)).thenReturn(List.of(dto));
     when(mlServiceApiClient.recognizeFace(any()))
         .thenReturn(
             FaceRecognitionResultDto.builder()
@@ -70,9 +62,7 @@ class RealFaceRecognizerTest {
 
   @Test
   void recognize_unknownPersonHasNoName() {
-    when(faceEmbeddingRepository.findAllByPerson_DeviceIdAndPerson_StatusOrderByCreatedAtAscIdAsc(
-            DEVICE_ID, PersonStatus.KNOWN))
-        .thenReturn(List.of());
+    when(personService.getFaceEmbeddings(DEVICE_ID)).thenReturn(List.of());
     when(mlServiceApiClient.recognizeFace(any()))
         .thenReturn(FaceRecognitionResultDto.builder().known(false).build());
 
@@ -84,9 +74,7 @@ class RealFaceRecognizerTest {
 
   @Test
   void recognize_nullMlResultIsUnknown() {
-    when(faceEmbeddingRepository.findAllByPerson_DeviceIdAndPerson_StatusOrderByCreatedAtAscIdAsc(
-            DEVICE_ID, PersonStatus.KNOWN))
-        .thenReturn(List.of());
+    when(personService.getFaceEmbeddings(DEVICE_ID)).thenReturn(List.of());
     when(mlServiceApiClient.recognizeFace(any())).thenReturn(null);
 
     FaceRecognitionOutcome outcome = recognizer.recognize(IMAGE, DEVICE_ID);

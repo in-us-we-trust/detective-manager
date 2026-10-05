@@ -267,9 +267,9 @@ public class OrchestratorServiceImpl implements OrchestratorService {
 
   private EventChunkResponseDto buildResponse(
       String trackIdStr, ChunkType mediaType, TrackConsolidation consolidation) {
-    Assessment finalA = consolidation != null ? consolidation.finalAssessment() : null;
+    Assessment finalAssessment = consolidation != null ? consolidation.finalAssessment() : null;
     return buildResponse(
-        trackIdStr, mediaType, consolidation, finalA != null ? finalA.getMessage() : null, null);
+        trackIdStr, mediaType, consolidation, finalAssessment != null ? finalAssessment.getMessage() : null, null);
   }
 
   private EventChunkResponseDto buildResponse(
@@ -279,13 +279,13 @@ public class OrchestratorServiceImpl implements OrchestratorService {
       String message,
       Map<String, Object> additionalInformation) {
 
-    Assessment finalA = consolidation != null ? consolidation.finalAssessment() : null;
+    Assessment finalAssessment = consolidation != null ? consolidation.finalAssessment() : null;
 
     return EventChunkResponseDto.builder()
         .trackId(trackIdStr)
         .chunkType(mediaType.name())
-        .finalVerdict(finalA != null ? finalA.getVerdict().name() : null)
-        .finalSeverity(finalA != null ? finalA.getSeverity().name() : null)
+        .finalVerdict(finalAssessment != null ? finalAssessment.getVerdict().name() : null)
+        .finalSeverity(finalAssessment != null ? finalAssessment.getSeverity().name() : null)
         .message(message)
         .additionalInformation(additionalInformation)
         .build();

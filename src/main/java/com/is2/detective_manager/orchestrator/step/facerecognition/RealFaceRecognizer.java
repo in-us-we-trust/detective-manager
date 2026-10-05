@@ -1,13 +1,11 @@
 package com.is2.detective_manager.orchestrator.step.facerecognition;
 
 import com.is2.detective_manager.client.MlServiceApiClient;
-import com.is2.detective_manager.mapper.PersonMapper;
 import com.is2.detective_manager.model.dto.FaceEmbeddingResponseDto;
 import com.is2.detective_manager.model.dto.FaceRecognitionClosestMatchDto;
 import com.is2.detective_manager.model.dto.FaceRecognitionResultDto;
 import com.is2.detective_manager.model.dto.MlFaceRecognitionRequestDto;
-import com.is2.detective_manager.model.entity.PersonStatus;
-import com.is2.detective_manager.repository.FaceEmbeddingRepository;
+import com.is2.detective_manager.service.PersonService;
 import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
@@ -27,18 +25,11 @@ import org.springframework.stereotype.Component;
 public class RealFaceRecognizer implements FaceRecognizer {
 
   private final MlServiceApiClient mlServiceApiClient;
-  private final FaceEmbeddingRepository faceEmbeddingRepository;
-  private final PersonMapper personMapper;
+  private final PersonService personService;
 
   @Override
   public FaceRecognitionOutcome recognize(byte[] image, UUID deviceId) {
-    List<FaceEmbeddingResponseDto> embeddings =
-        faceEmbeddingRepository
-            .findAllByPerson_DeviceIdAndPerson_StatusOrderByCreatedAtAscIdAsc(
-                deviceId, PersonStatus.KNOWN)
-            .stream()
-            .map(personMapper::toResponseDto)
-            .toList();
+    List<FaceEmbeddingResponseDto> embeddings = personService.getFaceEmbeddings(deviceId);
 
     log.info("Reconocimiento facial para device {} con {} embeddings", deviceId, embeddings.size());
 
