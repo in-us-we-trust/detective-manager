@@ -13,7 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.is2.detective_manager.client.MlServiceApiClient;
-import com.is2.detective_manager.client.UnknownPersonEventPublisher;
+import com.is2.detective_manager.client.NotificationPublisher;
 import com.is2.detective_manager.model.dto.ClusterDto;
 import com.is2.detective_manager.model.entity.FaceEmbedding;
 import com.is2.detective_manager.model.entity.FaceEmbeddingStatus;
@@ -44,7 +44,7 @@ class BatchControllerIntegrationTest {
   @Autowired private PersonRepository personRepository;
 
   @MockitoBean private MlServiceApiClient mlServiceApiClient;
-  @MockitoBean private UnknownPersonEventPublisher unknownPersonEventPublisher;
+  @MockitoBean private NotificationPublisher notificationPublisher;
 
   private static final String DEVICE_ID = "123e4567-e89b-12d3-a456-426614174000";
   private static final UUID DEVICE_UUID = UUID.fromString(DEVICE_ID);
@@ -92,7 +92,7 @@ class BatchControllerIntegrationTest {
     assertEquals(PersonStatus.UNKNOWN, personRepository.findAll().get(0).getStatus());
     assertEquals(0, faceEmbeddingRepository.findAllByPersonIsNull().size());
 
-    verify(unknownPersonEventPublisher, times(1)).publishUnknownPersonDetected(any());
+    verify(notificationPublisher, times(1)).publishUnknownPersonDetected(any());
   }
 
   @Test
@@ -110,7 +110,7 @@ class BatchControllerIntegrationTest {
         .andExpect(jsonPath("$.data.unknownPersonsCreated").value(0));
 
     assertEquals(0, personRepository.count());
-    verify(unknownPersonEventPublisher, never()).publishUnknownPersonDetected(any());
+    verify(notificationPublisher, never()).publishUnknownPersonDetected(any());
   }
 
   @Test
@@ -173,13 +173,14 @@ class BatchControllerIntegrationTest {
 
     mockMvc.perform(post("/api/detective-manager/v1/batch/persons")).andExpect(status().isOk());
 
-    verify(unknownPersonEventPublisher, times(1))
+    verify(notificationPublisher, times(1))
         .publishUnknownPersonDetected(
             argThat(
                 event ->
                     DEVICE_UUID.equals(event.getDeviceId())
                         && event.getPersonId() != null
-                        && "Unknown person detected".equals(event.getTitle())));
+                        && event.getDistinctDays() == 3
+                        && event.getImageUrls().equals(List.of(MOCK_IMAGE_URL))));
   }
 
   private List<FaceEmbedding> saveOrphanEmbeddings(int count, List<LocalDateTime> dates) {

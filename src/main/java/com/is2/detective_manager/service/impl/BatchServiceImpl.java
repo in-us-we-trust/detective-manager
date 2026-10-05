@@ -1,7 +1,7 @@
 package com.is2.detective_manager.service.impl;
 
 import com.is2.detective_manager.client.MlServiceApiClient;
-import com.is2.detective_manager.client.UnknownPersonEventPublisher;
+import com.is2.detective_manager.client.NotificationPublisher;
 import com.is2.detective_manager.mapper.PersonMapper;
 import com.is2.detective_manager.model.dto.BatchResponseDto;
 import com.is2.detective_manager.model.dto.ClusterDto;
@@ -39,7 +39,7 @@ public class BatchServiceImpl implements BatchService {
   private final FaceEmbeddingRepository faceEmbeddingRepository;
   private final PersonRepository personRepository;
   private final MlServiceApiClient mlServiceApiClient;
-  private final UnknownPersonEventPublisher unknownPersonEventPublisher;
+  private final NotificationPublisher notificationPublisher;
   private final PersonMapper personMapper;
   private final PersonService personService;
 
@@ -162,7 +162,7 @@ public class BatchServiceImpl implements BatchService {
 
       Person unknownPerson = createUnknownPerson(deviceId);
       associateEmbeddings(deviceEmbeddings, unknownPerson);
-      publishUnknownPersonEvent(unknownPerson, deviceEmbeddings);
+      publishUnknownPersonEvent(unknownPerson, deviceEmbeddings, distinctDays.size());
       created++;
     }
 
@@ -194,28 +194,30 @@ public class BatchServiceImpl implements BatchService {
     }
   }
 
-  private void publishUnknownPersonEvent(Person person, List<FaceEmbedding> embeddings) {
-    String imageUrl =
+  private void publishUnknownPersonEvent(
+      Person person, List<FaceEmbedding> embeddings, int distinctDays) {
+    List<String> imageUrls =
         embeddings.stream()
-            .filter(e -> e.getImageUrl() != null)
             .map(FaceEmbedding::getImageUrl)
-            .findFirst()
-            .orElse(null);
+            .filter(url -> url != null && !url.isBlank())
+            .distinct()
+            .toList();
 
     UnknownPersonDetectedEventDto event =
         UnknownPersonDetectedEventDto.builder()
-            .severity("info")
-            .tags(List.of("unknown-person", "suggestion"))
             .deviceId(person.getDeviceId())
             .personId(person.getId())
             .time(
                 LocalDateTime.now().atOffset(ZoneOffset.UTC).format(DateTimeFormatter.ISO_INSTANT))
-            .title("Unknown person detected")
-            .message(
-                "An unrecognized person was seen multiple times. Would you like to add them as a known person?")
-            .imageUrl(imageUrl)
+            .distinctDays(distinctDays)
+            .imageUrls(imageUrls)
             .build();
 
-    unknownPersonEventPublisher.publishUnknownPersonDetected(event);
+    log.info(
+        "Publishing unknown person suggestion for person {} with {} photos across {} distinct days",
+        person.getId(),
+        imageUrls.size(),
+        distinctDays);
+    notificationPublisher.publishUnknownPersonDetected(event);
   }
 }

@@ -269,7 +269,11 @@ public class OrchestratorServiceImpl implements OrchestratorService {
       String trackIdStr, ChunkType mediaType, TrackConsolidation consolidation) {
     Assessment finalAssessment = consolidation != null ? consolidation.finalAssessment() : null;
     return buildResponse(
-        trackIdStr, mediaType, consolidation, finalAssessment != null ? finalAssessment.getMessage() : null, null);
+        trackIdStr,
+        mediaType,
+        consolidation,
+        finalAssessment != null ? finalAssessment.getMessage() : null,
+        null);
   }
 
   private EventChunkResponseDto buildResponse(

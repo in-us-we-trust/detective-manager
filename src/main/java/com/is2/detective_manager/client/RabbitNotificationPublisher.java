@@ -3,6 +3,7 @@ package com.is2.detective_manager.client;
 import com.is2.detective_manager.exception.DetectiveException;
 import com.is2.detective_manager.exception.ExceptionEnum;
 import com.is2.detective_manager.model.dto.IntruderNotificationMessageDto;
+import com.is2.detective_manager.model.dto.UnknownPersonDetectedEventDto;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -12,19 +13,22 @@ public class RabbitNotificationPublisher implements NotificationPublisher {
 
   private final RabbitTemplate rabbitTemplate;
   private final String exchange;
-  private final String routingKey;
+  private final String intruderRoutingKey;
+  private final String unknownPersonRoutingKey;
   private final int maxAttempts;
   private final long retryDelayMs;
 
   public RabbitNotificationPublisher(
       RabbitTemplate rabbitTemplate,
       String exchange,
-      String routingKey,
+      String intruderRoutingKey,
+      String unknownPersonRoutingKey,
       int maxAttempts,
       long retryDelayMs) {
     this.rabbitTemplate = rabbitTemplate;
     this.exchange = exchange;
-    this.routingKey = routingKey;
+    this.intruderRoutingKey = intruderRoutingKey;
+    this.unknownPersonRoutingKey = unknownPersonRoutingKey;
     this.maxAttempts = Math.max(1, maxAttempts);
     this.retryDelayMs = retryDelayMs;
   }
@@ -32,14 +36,23 @@ public class RabbitNotificationPublisher implements NotificationPublisher {
   @Override
   public void publishIntruderDetected(IntruderNotificationMessageDto message) {
     log.info("Publishing intruder notification for device {}", message.getDeviceId());
-    publishWithRetry(exchange, routingKey, message, "intruder notification");
+    publishWithRetry(intruderRoutingKey, message, "intruder notification");
   }
 
-  private void publishWithRetry(String ex, String rk, Object message, String description) {
+  @Override
+  public void publishUnknownPersonDetected(UnknownPersonDetectedEventDto event) {
+    log.info(
+        "Publishing unknown person suggestion for device {}, person {}",
+        event.getDeviceId(),
+        event.getPersonId());
+    publishWithRetry(unknownPersonRoutingKey, event, "unknown person suggestion");
+  }
+
+  private void publishWithRetry(String routingKey, Object message, String description) {
     AmqpException lastException = null;
     for (int attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        rabbitTemplate.convertAndSend(ex, rk, message);
+        rabbitTemplate.convertAndSend(exchange, routingKey, message);
         return;
       } catch (AmqpException exception) {
         lastException = exception;

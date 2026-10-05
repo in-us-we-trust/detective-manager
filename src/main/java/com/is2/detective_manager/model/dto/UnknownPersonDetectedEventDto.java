@@ -9,12 +9,9 @@ import lombok.Data;
 @Builder
 public class UnknownPersonDetectedEventDto {
 
-  private String severity;
-  private List<String> tags;
   private UUID deviceId;
   private UUID personId;
   private String time;
-  private String title;
-  private String message;
-  private String imageUrl;
+  private int distinctDays;
+  private List<String> imageUrls;
 }
