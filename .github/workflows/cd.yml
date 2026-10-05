@@ -71,4 +71,6 @@ jobs:
             --set-env-vars "CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}" \
             --set-env-vars "CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}" \
             --set-env-vars "RABBIT_URL=${{ secrets.RABBIT_URL }}" \
-            --set-env-vars "RABBIT_QUEUE=${{ secrets.RABBIT_QUEUE }}"
+            --set-env-vars "RABBITMQ_NOTIFICATIONS_EXCHANGE=notifications" \
+            --set-env-vars "RABBITMQ_NOTIFICATIONS_INTRUDER_ROUTING_KEY=notification.intruder" \
+            --set-env-vars "RABBITMQ_NOTIFICATIONS_UNKNOWN_PERSON_ROUTING_KEY=notification.unknown-person"

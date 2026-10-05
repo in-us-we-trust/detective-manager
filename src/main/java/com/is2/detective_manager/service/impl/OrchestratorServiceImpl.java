@@ -12,12 +12,15 @@ import com.is2.detective_manager.orchestrator.StepContext;
 import com.is2.detective_manager.orchestrator.StepResult;
 import com.is2.detective_manager.orchestrator.evaluator.Assessment;
 import com.is2.detective_manager.orchestrator.evaluator.Signal;
+import com.is2.detective_manager.orchestrator.step.facerecognition.FaceRecognitionStep;
 import com.is2.detective_manager.service.OrchestratorService;
+import com.is2.detective_manager.service.PersonService;
 import com.is2.detective_manager.service.TrackConsolidation;
 import com.is2.detective_manager.service.TrackPersistenceService;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -38,6 +41,7 @@ public class OrchestratorServiceImpl implements OrchestratorService {
   private final TrackPersistenceService trackPersistenceService;
   private final NotificationPublisher notificationPublisher;
   private final CloudinaryStorageClient cloudinaryStorageClient;
+  private final PersonService personService;
 
   private final ExecutorService analysisExecutor;
 
@@ -98,13 +102,17 @@ public class OrchestratorServiceImpl implements OrchestratorService {
     CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
 
     // Ya en el thread principal (secuencial): juntar resultados, persistir.
+    List<StepOutcome> outcomes = new ArrayList<>();
     List<Signal> chunkSignals = new ArrayList<>();
     for (CompletableFuture<StepOutcome> future : futures) {
       StepOutcome outcome = future.join();
       if (outcome == null) {
         continue; // el step falló; seguimos con los demás
       }
-      chunkSignals.addAll(outcome.signals());
+      outcomes.add(outcome);
+      if (outcome.signals() != null) {
+        chunkSignals.addAll(outcome.signals());
+      }
       trackPersistenceService.saveAssessment(
           track,
           requestId,
@@ -121,12 +129,27 @@ public class OrchestratorServiceImpl implements OrchestratorService {
     // assessments; ante conflicto, la consolidación relee de la DB.
     TrackConsolidation consolidation = consolidateWithRetry(trackId, chunkSignals);
 
-    // === FASE 3: NOTIFICACIÓN (efecto externo, DESPUÉS del commit) ===
-    if (consolidation.shouldNotify()) {
-      maybeNotifyDanger(trackId, deviceId, consolidation.finalAssessment());
+    String personName = recognizedPersonName(outcomes);
+    if (mediaType == ChunkType.IMAGE && chunkSignals.contains(Signal.UNKNOWN_PERSON)) {
+      saveUnknownPersonSuggestion(deviceId, payload, mediaUrl);
     }
 
-    return buildResponse(trackIdStr, mediaType, consolidation);
+    Assessment finalAssessment = consolidation.finalAssessment();
+    String message =
+        messageWithRecognizedPerson(
+            finalAssessment != null ? finalAssessment.getMessage() : null, personName);
+
+    // === FASE 3: NOTIFICACIÓN (efecto externo, DESPUÉS del commit) ===
+    if (consolidation.shouldNotify()) {
+      maybeNotifyDanger(trackId, deviceId, message);
+    }
+
+    return buildResponse(
+        trackIdStr,
+        mediaType,
+        consolidation,
+        message,
+        additionalInformation(mediaType, personName));
   }
 
   /** Corre un step capturando errores: si falla, devuelve null (se ignora ese step). */
@@ -138,7 +161,7 @@ public class OrchestratorServiceImpl implements OrchestratorService {
       long durationMs = System.currentTimeMillis() - startedAt;
       log.info(
           "Step {} ejecutado ({} ms) -> signals={}", stepName, durationMs, result.getSignals());
-      return new StepOutcome(stepName, result.getSignals(), durationMs);
+      return new StepOutcome(stepName, result.getSignals(), result.getData(), durationMs);
     } catch (Exception e) {
       log.error("Step {} falló; se continúa con los demás", stepName, e);
       return null;
@@ -146,7 +169,8 @@ public class OrchestratorServiceImpl implements OrchestratorService {
   }
 
   /** Resultado de un step ya ejecutado (para juntar tras la barrera). */
-  private record StepOutcome(String stepName, List<Signal> signals, long durationMs) {}
+  private record StepOutcome(
+      String stepName, List<Signal> signals, Map<String, Object> data, long durationMs) {}
 
   /** Consolida reintentando ante conflicto de versión (cada intento es una tx nueva). */
   private TrackConsolidation consolidateWithRetry(UUID trackId, List<Signal> chunkSignals) {
@@ -170,26 +194,71 @@ public class OrchestratorServiceImpl implements OrchestratorService {
     throw lastConflict;
   }
 
-  private void maybeNotifyDanger(UUID trackId, UUID deviceId, Assessment assessment) {
+  private void saveUnknownPersonSuggestion(UUID deviceId, byte[] payload, String imageUrl) {
+    if (payload == null || payload.length == 0) {
+      log.warn("Persona desconocida sin imagen: no se guarda embedding de sugerencia");
+      return;
+    }
+
+    log.info("Persona desconocida en device {}: guardando embedding para sugerencia", deviceId);
+    personService.saveOrphanEmbeddingIfPossible(
+        deviceId, Base64.getEncoder().encodeToString(payload), imageUrl);
+  }
+
+  private String recognizedPersonName(List<StepOutcome> outcomes) {
+    for (StepOutcome outcome : outcomes) {
+      if (outcome.data() == null) {
+        continue;
+      }
+      Object value = outcome.data().get(FaceRecognitionStep.PERSON_NAME_DATA_KEY);
+      if (value instanceof String name && !name.isBlank()) {
+        return name;
+      }
+    }
+    return null;
+  }
+
+  private String messageWithRecognizedPerson(String message, String personName) {
+    if (personName == null || personName.isBlank()) {
+      return message;
+    }
+    String recognized = "Persona reconocida: " + personName;
+    if (message == null || message.isBlank() || "Persona reconocida".equals(message)) {
+      return recognized;
+    }
+    if (message.contains(personName)) {
+      return message;
+    }
+    return message + ". " + recognized;
+  }
+
+  private Map<String, Object> additionalInformation(ChunkType mediaType, String personName) {
+    if (mediaType != ChunkType.IMAGE || personName == null || personName.isBlank()) {
+      return null;
+    }
+    return Map.of(FaceRecognitionStep.PERSON_NAME_DATA_KEY, personName);
+  }
+
+  private void maybeNotifyDanger(UUID trackId, UUID deviceId, String message) {
     Optional<String> imageUrl = trackPersistenceService.findMostSevereImageUrl(trackId);
     if (imageUrl.isEmpty()) {
       log.info("DANGER en track {} pero sin imagen: no se envía notificación.", trackId);
       return;
     }
 
-    IntruderNotificationMessageDto message =
+    IntruderNotificationMessageDto notification =
         IntruderNotificationMessageDto.builder()
             .severity("high")
             .tags(List.of("danger", "doorbell"))
             .deviceId(deviceId)
             .time(OffsetDateTime.now().format(DateTimeFormatter.ISO_INSTANT))
             .title("Peligro detectado")
-            .message(assessment.getMessage())
+            .message(message)
             .imageUrl(imageUrl.get())
             .build();
 
     try {
-      notificationPublisher.publishIntruderDetected(message);
+      notificationPublisher.publishIntruderDetected(notification);
       log.info("Notificación de peligro publicada para track {}", trackId);
     } catch (Exception e) {
       log.error("No se pudo publicar la notificación de peligro (se continúa igual)", e);
@@ -198,15 +267,31 @@ public class OrchestratorServiceImpl implements OrchestratorService {
 
   private EventChunkResponseDto buildResponse(
       String trackIdStr, ChunkType mediaType, TrackConsolidation consolidation) {
+    Assessment finalAssessment = consolidation != null ? consolidation.finalAssessment() : null;
+    return buildResponse(
+        trackIdStr,
+        mediaType,
+        consolidation,
+        finalAssessment != null ? finalAssessment.getMessage() : null,
+        null);
+  }
 
-    Assessment finalA = consolidation != null ? consolidation.finalAssessment() : null;
+  private EventChunkResponseDto buildResponse(
+      String trackIdStr,
+      ChunkType mediaType,
+      TrackConsolidation consolidation,
+      String message,
+      Map<String, Object> additionalInformation) {
+
+    Assessment finalAssessment = consolidation != null ? consolidation.finalAssessment() : null;
 
     return EventChunkResponseDto.builder()
         .trackId(trackIdStr)
         .chunkType(mediaType.name())
-        .finalVerdict(finalA != null ? finalA.getVerdict().name() : null)
-        .finalSeverity(finalA != null ? finalA.getSeverity().name() : null)
-        .message(finalA != null ? finalA.getMessage() : null)
+        .finalVerdict(finalAssessment != null ? finalAssessment.getVerdict().name() : null)
+        .finalSeverity(finalAssessment != null ? finalAssessment.getSeverity().name() : null)
+        .message(message)
+        .additionalInformation(additionalInformation)
         .build();
   }
 }

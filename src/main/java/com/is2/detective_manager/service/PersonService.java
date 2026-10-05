@@ -23,4 +23,10 @@ public interface PersonService {
   void deleteImage(UUID deviceId, UUID personId, Long imageId);
 
   PersonResponseDto addImages(UUID deviceId, UUID personId, AddPersonImagesRequestDto request);
+
+  /**
+   * Persiste un embedding huérfano (sin persona) para el batch de sugerencias. Si el ML falla o
+   * devuelve un embedding inválido, no interrumpe al llamador.
+   */
+  void saveOrphanEmbeddingIfPossible(UUID deviceId, String image, String imageUrl);
 }

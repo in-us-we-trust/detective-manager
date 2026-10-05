@@ -11,13 +11,30 @@ public interface PersonMapper {
 
   @Mapping(target = "id", ignore = true)
   @Mapping(target = "person", source = "person")
+  @Mapping(target = "deviceId", source = "person.deviceId")
   @Mapping(target = "embedding", source = "generated.embedding")
   @Mapping(target = "modelName", source = "generated.modelName")
   @Mapping(target = "detectorBackend", source = "generated.detectorBackend")
   @Mapping(target = "createdAt", expression = "java(java.time.LocalDateTime.now())")
+  @Mapping(
+      target = "status",
+      expression =
+          "java(com.is2.detective_manager.model.entity.FaceEmbeddingStatus.CREATED_BY_USER)")
   FaceEmbedding toEntity(Person person, GeneratedFaceEmbeddingDto generated, String imageUrl);
 
-  @Mapping(target = "deviceId", source = "person.deviceId")
+  @Mapping(target = "id", ignore = true)
+  @Mapping(target = "person", ignore = true)
+  @Mapping(target = "deviceId", source = "deviceId")
+  @Mapping(target = "embedding", source = "generated.embedding")
+  @Mapping(target = "modelName", source = "generated.modelName")
+  @Mapping(target = "detectorBackend", source = "generated.detectorBackend")
+  @Mapping(target = "createdAt", expression = "java(java.time.LocalDateTime.now())")
+  @Mapping(
+      target = "status",
+      expression = "java(com.is2.detective_manager.model.entity.FaceEmbeddingStatus.WAITING_BATCH)")
+  FaceEmbedding toOrphanEntity(UUID deviceId, GeneratedFaceEmbeddingDto generated, String imageUrl);
+
+  @Mapping(target = "deviceId", source = "deviceId")
   @Mapping(target = "personId", source = "person.id")
   @Mapping(target = "personName", source = "person.name")
   @Mapping(target = "dimensions", expression = "java(faceEmbedding.getEmbedding().size())")
@@ -25,8 +42,11 @@ public interface PersonMapper {
 
   @Mapping(target = "id", ignore = true)
   @Mapping(target = "deviceId", source = "deviceId")
-  @Mapping(target = "normalizedName", expression = "java(request.getName().trim().toLowerCase())")
+  @Mapping(target = "normalizedName", source = "request.name", qualifiedByName = "normalizeName")
   @Mapping(target = "createdAt", expression = "java(java.time.LocalDateTime.now())")
+  @Mapping(
+      target = "status",
+      expression = "java(com.is2.detective_manager.model.entity.PersonStatus.KNOWN)")
   Person toEntity(UUID deviceId, CreatePersonRequestDto request);
 
   PersonResponseDto toResponseDto(Person person);
@@ -38,4 +58,22 @@ public interface PersonMapper {
 
   @Mapping(target = "imageUrl", source = "imageUrl")
   PersonImageResponseDto toPersonImageResponseDto(FaceEmbedding embedding);
+
+  @AfterMapping
+  default void afterUpdate(@MappingTarget Person person, UpdatePersonRequestDto request) {
+    String normalizedName = normalizeName(request.getName());
+    if (normalizedName != null) {
+      person.setNormalizedName(normalizedName);
+    }
+  }
+
+  @Named("normalizeName")
+  default String normalizeName(String name) {
+    if (name == null) {
+      return null;
+    }
+
+    name = name.trim();
+    return name.isEmpty() ? null : name.toLowerCase();
+  }
 }

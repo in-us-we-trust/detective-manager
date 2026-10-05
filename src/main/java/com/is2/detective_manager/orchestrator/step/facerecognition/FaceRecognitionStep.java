@@ -6,6 +6,7 @@ import com.is2.detective_manager.orchestrator.AnalysisStep;
 import com.is2.detective_manager.orchestrator.StepContext;
 import com.is2.detective_manager.orchestrator.StepResult;
 import com.is2.detective_manager.orchestrator.evaluator.Signal;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,9 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class FaceRecognitionStep implements AnalysisStep {
 
+  /** Clave en {@link StepResult#getData()} con el nombre cuando la persona es conocida. */
+  public static final String PERSON_NAME_DATA_KEY = "personName";
+
   private final FaceRecognizer faceRecognizer;
 
   @Override
@@ -28,16 +32,19 @@ public class FaceRecognitionStep implements AnalysisStep {
 
   @Override
   public StepResult execute(StepContext context) {
-    boolean known = faceRecognizer.isKnown(context.getPayload(), context.getDeviceId());
+    FaceRecognitionOutcome outcome =
+        faceRecognizer.recognize(context.getPayload(), context.getDeviceId());
+
+    Map<String, Object> data = new HashMap<>();
+    data.put("faceKnown", outcome.known());
+    if (outcome.known() && outcome.personName() != null && !outcome.personName().isBlank()) {
+      data.put(PERSON_NAME_DATA_KEY, outcome.personName());
+    }
 
     StepResult.StepResultBuilder result =
-        StepResult.builder()
-            .nextStatus(TrackStatus.FACE_RECOGNIZED)
-            .data(Map.of("faceKnown", known))
-            .shouldNotify(false);
+        StepResult.builder().nextStatus(TrackStatus.FACE_RECOGNIZED).data(data).shouldNotify(false);
 
-    // Emitimos la señal según si la cara es conocida o no.
-    result.signal(known ? Signal.KNOWN_PERSON : Signal.UNKNOWN_PERSON);
+    result.signal(outcome.known() ? Signal.KNOWN_PERSON : Signal.UNKNOWN_PERSON);
 
     return result.build();
   }

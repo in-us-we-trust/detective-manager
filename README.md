@@ -162,7 +162,9 @@ Y espera:
 | `CLOUDINARY_API_KEY` | API key de Cloudinary | — |
 | `CLOUDINARY_API_SECRET` | API secret de Cloudinary | — |
 | `RABBIT_URL` | URL AMQP/AMQPS de RabbitMQ | `amqp://guest:guest@localhost:5672/` |
-| `RABBIT_QUEUE` | Cola/routing key donde publicar notificaciones | `doorbell-notifications` |
+| `RABBITMQ_NOTIFICATIONS_EXCHANGE` | Exchange topic de notificaciones | `notifications` |
+| `RABBITMQ_NOTIFICATIONS_INTRUDER_ROUTING_KEY` | Routing key de alerta de intruso | `notification.intruder` |
+| `RABBITMQ_NOTIFICATIONS_UNKNOWN_PERSON_ROUTING_KEY` | Routing key de sugerencia de persona desconocida | `notification.unknown-person` |
 | `PORT` | Puerto del servidor | `8087` |
 | `SPRING_PROFILES_ACTIVE` | Perfil activo de Spring | `local` |
 
@@ -179,7 +181,9 @@ cloudinary.cloud-name=...
 cloudinary.api-key=...
 cloudinary.api-secret=...
 spring.rabbitmq.addresses=amqp://guest:guest@localhost:5672/
-rabbitmq.notifications.routing-key=doorbell-notifications
+rabbitmq.notifications.exchange=notifications
+rabbitmq.notifications.intruder-routing-key=notification.intruder
+rabbitmq.notifications.unknown-person-routing-key=notification.unknown-person
 ```
 
 ## Ejecución

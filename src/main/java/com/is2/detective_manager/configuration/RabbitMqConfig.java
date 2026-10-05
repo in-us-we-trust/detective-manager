@@ -21,10 +21,16 @@ public class RabbitMqConfig {
   public NotificationPublisher notificationPublisher(
       RabbitTemplate rabbitTemplate,
       @Value("${rabbitmq.notifications.exchange}") String exchange,
-      @Value("${rabbitmq.notifications.routing-key}") String routingKey,
+      @Value("${rabbitmq.notifications.intruder-routing-key}") String intruderRoutingKey,
+      @Value("${rabbitmq.notifications.unknown-person-routing-key}") String unknownPersonRoutingKey,
       @Value("${rabbitmq.notifications.publish.max-attempts}") int maxAttempts,
       @Value("${rabbitmq.notifications.publish.retry-delay-ms}") long retryDelayMs) {
     return new RabbitNotificationPublisher(
-        rabbitTemplate, exchange, routingKey, maxAttempts, retryDelayMs);
+        rabbitTemplate,
+        exchange,
+        intruderRoutingKey,
+        unknownPersonRoutingKey,
+        maxAttempts,
+        retryDelayMs);
   }
 }
