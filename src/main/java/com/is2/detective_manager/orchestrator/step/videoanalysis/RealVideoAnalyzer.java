@@ -78,6 +78,7 @@ public class RealVideoAnalyzer implements VideoAnalyzer {
                 .toList();
 
     log.info("Análisis de video recibido: {} observaciones", observations.size());
+    log.info("observations: {}", observations);
     return new VideoAnalysisResult(metadata, observations);
   }
 

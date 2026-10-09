@@ -12,16 +12,7 @@ import org.springframework.stereotype.Component;
 public class MockFaceRecognizer implements FaceRecognizer {
 
   @Override
-  public FaceRecognitionOutcome recognize(byte[] image, UUID deviceId) {
-    // TEMPORAL (prueba de paralelismo): delay para ver que corre en paralelo. QUITAR después.
-    try {
-      log.info(
-          "[mock] face: INICIO análisis (8000 ms) en thread {}", Thread.currentThread().getName());
-      Thread.sleep(8000);
-      log.info("[mock] face: FIN análisis en thread {}", Thread.currentThread().getName());
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-    }
+  public boolean isKnown(byte[] image, UUID deviceId) {
     log.info("[mock] Reconocimiento facial simulado -> known=false");
     return FaceRecognitionOutcome.unknown();
   }

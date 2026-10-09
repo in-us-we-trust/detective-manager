@@ -15,6 +15,6 @@ public class AsyncConfig {
    */
   @Bean(name = "analysisExecutor", destroyMethod = "shutdown")
   public ExecutorService analysisExecutor() {
-    return Executors.newFixedThreadPool(8);
+    return Executors.newFixedThreadPool(1);
   }
 }

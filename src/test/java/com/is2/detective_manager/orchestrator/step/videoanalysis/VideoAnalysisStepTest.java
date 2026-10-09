@@ -154,6 +154,18 @@ class VideoAnalysisStepTest {
     assertTrue(features.relativeDistances().get(0).minimumDistancePct() > 0);
   }
 
+  @Test
+  void execute_emitsNoSuspiciousBehaviorOnlyWhenNothingElseWasDetected() {
+    assertEquals(List.of(Signal.NO_SUSPICIOUS_BEHAVIOR), execute(List.of(), 5).getSignals());
+
+    List<VideoObservation> still = new ArrayList<>();
+    for (int sample = 0; sample <= 50; sample++) {
+      still.add(observation(sample, sample * 0.5, 1, 50, 50, 12, 0.1, 0.95));
+    }
+
+    assertFalse(execute(still, 25).getSignals().contains(Signal.NO_SUSPICIOUS_BEHAVIOR));
+  }
+
   private StepResult execute(List<VideoObservation> observations, double durationSeconds) {
     VideoAnalysisResult analysis =
         new VideoAnalysisResult(

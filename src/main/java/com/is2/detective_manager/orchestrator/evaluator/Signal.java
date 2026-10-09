@@ -27,6 +27,7 @@ public enum Signal {
   THREAT, // amenaza explícita
   CODE_REQUEST, // pide un código
   MONEY_REQUEST, // pide dinero
+  NO_SUSPICIOUS_CONVERSATION, // se analizó la conversación y no se detectó nada extraño
 
   // --- Análisis de comportamiento (video) ---
   PROLONGED_PRESENCE, // presencia estable durante un período prolongado
@@ -35,5 +36,6 @@ public enum Signal {
   RETURNED_TO_PREVIOUS_POSITION, // se alejó y volvió a una región recorrida
   APPROACHING_CAMERA, // tendencia sostenida de acercamiento
   FAST_APPROACH, // acercamiento sostenido a velocidad alta
-  LOITERING // presencia prolongada + otro patrón de merodeo
+  LOITERING, // presencia prolongada + otro patrón de merodeo
+  NO_SUSPICIOUS_BEHAVIOR // se analizó el video y no se detectó nada extraño
 }

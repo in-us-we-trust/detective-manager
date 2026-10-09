@@ -6,6 +6,7 @@ import com.is2.detective_manager.orchestrator.AnalysisStep;
 import com.is2.detective_manager.orchestrator.StepContext;
 import com.is2.detective_manager.orchestrator.StepResult;
 import com.is2.detective_manager.orchestrator.evaluator.Signal;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -60,14 +61,21 @@ public class ConversationAnalysisStep implements AnalysisStep {
         StepResult.builder().nextStatus(TrackStatus.AUDIO_TAGGED).shouldNotify(false);
 
     // Cada evidencia que supera su umbral se traduce a su Signal.
+    Set<Signal> signals = EnumSet.noneOf(Signal.class);
     for (Evidence ev : evidences) {
       double threshold = THRESHOLDS.getOrDefault(ev.getType(), DEFAULT_THRESHOLD);
       Signal signal = TYPE_TO_SIGNAL.get(ev.getType());
       if (signal != null && ev.getScore() > threshold) {
-        result.signal(signal);
+        signals.add(signal);
       }
     }
 
+    // Si no se detectó nada extraño en la conversación, señal de "todo tranquilo".
+    if (signals.isEmpty()) {
+      signals.add(Signal.NO_SUSPICIOUS_CONVERSATION);
+    }
+
+    signals.forEach(result::signal);
     return result.build();
   }
 }

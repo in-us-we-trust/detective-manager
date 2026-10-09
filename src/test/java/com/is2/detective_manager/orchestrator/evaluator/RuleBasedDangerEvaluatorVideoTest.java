@@ -24,7 +24,9 @@ class RuleBasedDangerEvaluatorVideoTest {
     assertEquals(Severity.SOSPECHOSO, assessment.getSeverity());
     assertEquals(Verdict.CONTINUE, assessment.getVerdict());
     assertEquals(
-        "Persona desconocida con posible comportamiento de merodeo", assessment.getMessage());
+        "Persona desconocida con posible comportamiento de merodeo"
+            + " · Permanencia prolongada con detención extensa",
+        assessment.getMessage());
   }
 
   @Test
@@ -35,7 +37,10 @@ class RuleBasedDangerEvaluatorVideoTest {
                 Signal.PROLONGED_PRESENCE, Signal.RETURNED_TO_PREVIOUS_POSITION, Signal.LOITERING));
 
     assertEquals(Severity.SOSPECHOSO, assessment.getSeverity());
-    assertEquals("Permanencia prolongada con movimientos de ida y vuelta", assessment.getMessage());
+    assertEquals(
+        "Permanencia prolongada con movimientos de ida y vuelta"
+            + " · Posible comportamiento de merodeo",
+        assessment.getMessage());
   }
 
   @Test
@@ -46,7 +51,9 @@ class RuleBasedDangerEvaluatorVideoTest {
 
     assertEquals(Severity.SOSPECHOSO, assessment.getSeverity());
     assertEquals(Verdict.CONTINUE, assessment.getVerdict());
-    assertEquals("Persona desconocida acercándose rápidamente", assessment.getMessage());
+    assertEquals(
+        "Persona desconocida acercándose rápidamente · Persona desconocida acercándose",
+        assessment.getMessage());
   }
 
   @Test
@@ -59,9 +66,15 @@ class RuleBasedDangerEvaluatorVideoTest {
         evaluator.evaluate(List.of(Signal.THREAT, Signal.UNKNOWN_PERSON, Signal.LOITERING));
 
     assertEquals(Verdict.DANGER, weapon.getVerdict());
-    assertEquals("La persona está armada", weapon.getMessage());
+    assertEquals(
+        "La persona está armada"
+            + " · Amenaza verbal detectada"
+            + " · Persona desconocida con posible comportamiento de merodeo",
+        weapon.getMessage());
     assertEquals(Verdict.DANGER, threat.getVerdict());
-    assertEquals("Amenaza verbal detectada", threat.getMessage());
+    assertEquals(
+        "Amenaza verbal detectada · Persona desconocida con posible comportamiento de merodeo",
+        threat.getMessage());
   }
 
   @Test
@@ -97,6 +110,37 @@ class RuleBasedDangerEvaluatorVideoTest {
         List.of(Signal.PROLONGED_PRESENCE),
         Severity.LLAMATIVO,
         "Persona presente durante un período prolongado");
+  }
+
+  @Test
+  void whiteSignals_areReportedAsNormal() {
+    assertAssessment(
+        List.of(Signal.NO_SUSPICIOUS_CONVERSATION),
+        Severity.NORMAL,
+        "No se detectó nada extraño en la conversación");
+    assertAssessment(
+        List.of(Signal.NO_SUSPICIOUS_BEHAVIOR),
+        Severity.NORMAL,
+        "No se detectó nada extraño en el video");
+    assertAssessment(
+        List.of(
+            Signal.UNKNOWN_PERSON, Signal.NO_SUSPICIOUS_CONVERSATION, Signal.NO_SUSPICIOUS_BEHAVIOR),
+        Severity.LLAMATIVO,
+        "No se reconoce a la persona"
+            + " · No se detectó nada extraño en la conversación"
+            + " · No se detectó nada extraño en el video");
+  }
+
+  @Test
+  void whiteSignals_areDroppedWhenTheTrackHasFindingsFromTheSameSource() {
+    assertAssessment(
+        List.of(Signal.NO_SUSPICIOUS_CONVERSATION, Signal.URGENCY),
+        Severity.LLAMATIVO,
+        "Habla con urgencia");
+    assertAssessment(
+        List.of(Signal.NO_SUSPICIOUS_BEHAVIOR, Signal.LOITERING),
+        Severity.SOSPECHOSO,
+        "Posible comportamiento de merodeo");
   }
 
   private void assertAssessment(

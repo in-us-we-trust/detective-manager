@@ -64,6 +64,11 @@ public class VideoAnalysisStep implements AnalysisStep {
       signals.add(Signal.MULTIPLE_PEOPLE);
     }
 
+    // Si no se detectó nada extraño en el video, señal de "todo tranquilo".
+    if (signals.isEmpty()) {
+      signals.add(Signal.NO_SUSPICIOUS_BEHAVIOR);
+    }
+
     StepResult.StepResultBuilder result =
         StepResult.builder()
             .nextStatus(TrackStatus.VIDEO_ANALYZED)
