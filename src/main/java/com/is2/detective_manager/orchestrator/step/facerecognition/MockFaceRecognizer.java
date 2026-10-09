@@ -12,8 +12,8 @@ import org.springframework.stereotype.Component;
 public class MockFaceRecognizer implements FaceRecognizer {
 
   @Override
-  public boolean isKnown(byte[] image, UUID deviceId) {
-    log.info("[mock] Reconocimiento facial simulado -> known=false");
+  public FaceRecognitionOutcome recognize(byte[] image, UUID deviceId) {
+    log.info("[mock] Reconocimiento facial simulado -> unknown");
     return FaceRecognitionOutcome.unknown();
   }
 }
