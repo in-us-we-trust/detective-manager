@@ -26,6 +26,6 @@ public class ObjectDetectionResponseDto {
   @JsonIgnoreProperties(ignoreUnknown = true)
   public static class DetectedObjectDto {
     private String label;
-    private double confidence;
+    private Double confidence;
   }
 }

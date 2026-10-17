@@ -2,6 +2,7 @@ package com.is2.detective_manager.orchestrator.step.objectrecognition;
 
 import com.is2.detective_manager.model.entity.ChunkType;
 import com.is2.detective_manager.model.entity.TrackStatus;
+import com.is2.detective_manager.orchestrator.AnalysisQuality;
 import com.is2.detective_manager.orchestrator.AnalysisStep;
 import com.is2.detective_manager.orchestrator.StepContext;
 import com.is2.detective_manager.orchestrator.StepResult;
@@ -23,7 +24,7 @@ public class ObjectRecognitionStep implements AnalysisStep {
 
   private final ObjectRecognizer objectRecognizer;
 
-  /** Umbral de confidence por label. Por ahora, todos > 0.8. */
+  /** Umbral de confidence por label. Por ahora, todos > 0.3. */
   private static final double DEFAULT_THRESHOLD = 0.3;
 
   private static final Map<String, Double> THRESHOLDS =
@@ -33,7 +34,10 @@ public class ObjectRecognitionStep implements AnalysisStep {
           "Firearm", DEFAULT_THRESHOLD,
           "Melee_Weapon", DEFAULT_THRESHOLD,
           "Blunt Weapon", DEFAULT_THRESHOLD,
-          "Explosive", DEFAULT_THRESHOLD);
+          "Explosive", DEFAULT_THRESHOLD,
+          "ladder", DEFAULT_THRESHOLD,
+          "Tool", DEFAULT_THRESHOLD,
+          "package", DEFAULT_THRESHOLD);
 
   /** Mapeo label del ML -> Signal del dominio. Las armas van todas a WEAPON_DETECTED. */
   private static final Map<String, Signal> LABEL_TO_SIGNAL =
@@ -43,7 +47,10 @@ public class ObjectRecognitionStep implements AnalysisStep {
           "Firearm", Signal.WEAPON_DETECTED,
           "Melee_Weapon", Signal.WEAPON_DETECTED,
           "Blunt Weapon", Signal.WEAPON_DETECTED,
-          "Explosive", Signal.WEAPON_DETECTED);
+          "Explosive", Signal.WEAPON_DETECTED,
+          "ladder", Signal.LADDER_DETECTED,
+          "Tool", Signal.TOOL_DETECTED,
+          "package", Signal.PACKAGE_DETECTED);
 
   @Override
   public boolean supports(Set<ChunkType> availableInputs) {
@@ -73,12 +80,19 @@ public class ObjectRecognitionStep implements AnalysisStep {
     }
 
     // Si no se detectó ningún objeto amenazante, señal de "todo tranquilo".
-    if (!signals.contains(Signal.WEAPON_DETECTED) && !signals.contains(Signal.COVERED_FACE)) {
+    if (detection.quality() == AnalysisQuality.VALID
+        && !signals.contains(Signal.WEAPON_DETECTED)
+        && !signals.contains(Signal.COVERED_FACE)) {
       signals.add(Signal.NO_THREAT_OBJECT);
     }
 
     StepResult.StepResultBuilder result =
         StepResult.builder().nextStatus(TrackStatus.IMAGE_ANALYZED).shouldNotify(false);
+    if (detection.quality() != AnalysisQuality.VALID) {
+      result
+          .quality(AnalysisQuality.INSUFFICIENT)
+          .message("No se obtuvo suficiente información para evaluar los objetos de la imagen.");
+    }
     signals.forEach(result::signal);
 
     return result.build();

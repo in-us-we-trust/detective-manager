@@ -2,10 +2,13 @@ package com.is2.detective_manager.orchestrator.step.videoanalysis;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.is2.detective_manager.configuration.VideoAnalysisProperties;
+import com.is2.detective_manager.exception.DetectiveException;
 import com.is2.detective_manager.model.entity.ChunkType;
+import com.is2.detective_manager.orchestrator.AnalysisQuality;
 import com.is2.detective_manager.orchestrator.StepContext;
 import com.is2.detective_manager.orchestrator.StepResult;
 import com.is2.detective_manager.orchestrator.evaluator.Signal;
@@ -106,8 +109,11 @@ class VideoAnalysisStepTest {
           observation(100 + sample, timestamp, 2, 20 + sample * 5, 50, 5 + sample * 3, 12, 0.10));
     }
 
-    Set<Signal> signals = Set.copyOf(execute(observations, 5).getSignals());
+    StepResult result = execute(observations, 5);
+    Set<Signal> signals = Set.copyOf(result.getSignals());
 
+    assertEquals(AnalysisQuality.VALID, result.getQuality());
+    assertTrue(signals.contains(Signal.NO_SUSPICIOUS_BEHAVIOR));
     assertFalse(signals.contains(Signal.PROLONGED_PRESENCE));
     assertFalse(signals.contains(Signal.LONG_STOP));
     assertFalse(signals.contains(Signal.REPEATED_DIRECTION_CHANGES));
@@ -156,7 +162,9 @@ class VideoAnalysisStepTest {
 
   @Test
   void execute_emitsNoSuspiciousBehaviorOnlyWhenNothingElseWasDetected() {
-    assertEquals(List.of(Signal.NO_SUSPICIOUS_BEHAVIOR), execute(List.of(), 5).getSignals());
+    StepResult ordinaryPresence = execute(List.of(observation(0, 0, 1, 50, 50, 12, 0.1, 0.95)), 5);
+    assertEquals(List.of(Signal.NO_SUSPICIOUS_BEHAVIOR), ordinaryPresence.getSignals());
+    assertEquals(AnalysisQuality.VALID, ordinaryPresence.getQuality());
 
     List<VideoObservation> still = new ArrayList<>();
     for (int sample = 0; sample <= 50; sample++) {
@@ -166,11 +174,82 @@ class VideoAnalysisStepTest {
     assertFalse(execute(still, 25).getSignals().contains(Signal.NO_SUSPICIOUS_BEHAVIOR));
   }
 
+  @Test
+  void execute_reportsNoPersonsWithoutClaimingBehaviorWasEvaluated() {
+    StepResult result = execute(List.of(), 5);
+
+    assertEquals(AnalysisQuality.VALID, result.getQuality());
+    assertTrue(result.getSignals().isEmpty());
+    assertEquals("No se detectaron personas en el video", result.getMessage());
+  }
+
+  @Test
+  void execute_marksOnlyLowConfidenceObservationsAsInsufficient() {
+    StepResult result = execute(List.of(observation(0, 0, 1, 50, 50, 12, 0.1, 0.1)), 5);
+
+    assertEquals(AnalysisQuality.INSUFFICIENT, result.getQuality());
+    assertTrue(result.getSignals().isEmpty());
+    assertEquals(
+        "No hay observaciones utilizables para evaluar el comportamiento en el video",
+        result.getMessage());
+  }
+
+  @Test
+  void execute_marksDiscardedMalformedObservationsAsInsufficient() {
+    StepResult result =
+        execute(new VideoAnalysisResult(new VideoMetadata(1920, 1080, 2, 5, 10), List.of(), 2));
+
+    assertEquals(AnalysisQuality.INSUFFICIENT, result.getQuality());
+    assertTrue(result.getSignals().isEmpty());
+    assertFalse(result.getMessage().contains("No se detectaron personas"));
+  }
+
+  @Test
+  void execute_marksPartiallyMalformedObservationsInsufficientWithoutReassurance() {
+    List<VideoObservation> usable = List.of(observation(0, 0, 1, 50, 50, 12, 0.1, 0.95));
+
+    StepResult result =
+        execute(new VideoAnalysisResult(new VideoMetadata(1920, 1080, 2, 5, 10), usable, 4));
+
+    assertEquals(AnalysisQuality.INSUFFICIENT, result.getQuality());
+    assertTrue(result.getSignals().isEmpty());
+    assertEquals(
+        "Algunas observaciones del video no pudieron utilizarse para evaluar el comportamiento",
+        result.getMessage());
+  }
+
+  @Test
+  void execute_preservesBehaviorEvidenceWhenSomeObservationsWereDiscarded() {
+    List<VideoObservation> observations = new ArrayList<>();
+    for (int sample = 0; sample <= 50; sample++) {
+      observations.add(observation(sample, sample * 0.5, 1, 50, 50, 12, 0.1, 0.95));
+    }
+    observations.add(observation(51, 0, 2, 50, 50, 12, 0.1, 0.1));
+    StepResult result =
+        execute(
+            new VideoAnalysisResult(
+                new VideoMetadata(1920, 1080, 2, 25, 50), observations, observations.size() + 1));
+
+    assertEquals(AnalysisQuality.INSUFFICIENT, result.getQuality());
+    assertTrue(result.getSignals().contains(Signal.LOITERING));
+    assertTrue(result.getSignals().contains(Signal.LONG_STOP));
+    assertFalse(result.getSignals().contains(Signal.NO_SUSPICIOUS_BEHAVIOR));
+  }
+
+  @Test
+  void execute_rejectsAnUnavailableAnalyzerResult() {
+    assertThrows(DetectiveException.class, () -> execute((VideoAnalysisResult) null));
+  }
+
   private StepResult execute(List<VideoObservation> observations, double durationSeconds) {
     VideoAnalysisResult analysis =
         new VideoAnalysisResult(
             new VideoMetadata(1920, 1080, 2, durationSeconds, (int) (durationSeconds * 2)),
             observations);
+    return execute(analysis);
+  }
+
+  private StepResult execute(VideoAnalysisResult analysis) {
     VideoAnalysisStep step = new VideoAnalysisStep(ignored -> analysis, calculator, properties);
     return step.execute(
         StepContext.builder()

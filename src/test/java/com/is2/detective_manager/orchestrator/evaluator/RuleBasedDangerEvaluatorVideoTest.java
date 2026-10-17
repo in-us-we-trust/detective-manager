@@ -52,7 +52,7 @@ class RuleBasedDangerEvaluatorVideoTest {
     assertEquals(Severity.SOSPECHOSO, assessment.getSeverity());
     assertEquals(Verdict.CONTINUE, assessment.getVerdict());
     assertEquals(
-        "Persona desconocida acercándose rápidamente · Persona desconocida acercándose",
+        "Hay alguien desconocido y un acercamiento rápido en la entrada. Revisá antes de abrir. · Persona desconocida acercándose",
         assessment.getMessage());
   }
 
@@ -124,7 +124,9 @@ class RuleBasedDangerEvaluatorVideoTest {
         "No se detectó nada extraño en el video");
     assertAssessment(
         List.of(
-            Signal.UNKNOWN_PERSON, Signal.NO_SUSPICIOUS_CONVERSATION, Signal.NO_SUSPICIOUS_BEHAVIOR),
+            Signal.UNKNOWN_PERSON,
+            Signal.NO_SUSPICIOUS_CONVERSATION,
+            Signal.NO_SUSPICIOUS_BEHAVIOR),
         Severity.LLAMATIVO,
         "No se reconoce a la persona"
             + " · No se detectó nada extraño en la conversación"

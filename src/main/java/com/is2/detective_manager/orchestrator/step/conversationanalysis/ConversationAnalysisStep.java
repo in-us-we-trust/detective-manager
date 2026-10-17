@@ -2,12 +2,12 @@ package com.is2.detective_manager.orchestrator.step.conversationanalysis;
 
 import com.is2.detective_manager.model.entity.ChunkType;
 import com.is2.detective_manager.model.entity.TrackStatus;
+import com.is2.detective_manager.orchestrator.AnalysisQuality;
 import com.is2.detective_manager.orchestrator.AnalysisStep;
 import com.is2.detective_manager.orchestrator.StepContext;
 import com.is2.detective_manager.orchestrator.StepResult;
 import com.is2.detective_manager.orchestrator.evaluator.Signal;
 import java.util.EnumSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -55,23 +55,36 @@ public class ConversationAnalysisStep implements AnalysisStep {
 
   @Override
   public StepResult execute(StepContext context) {
-    List<Evidence> evidences = conversationAnalyzer.analyze(context.getPayload());
+    ConversationAnalysisResult analysis = conversationAnalyzer.analyze(context.getPayload());
 
     StepResult.StepResultBuilder result =
         StepResult.builder().nextStatus(TrackStatus.AUDIO_TAGGED).shouldNotify(false);
 
+    boolean insufficient =
+        analysis.quality() != AnalysisQuality.VALID || analysis.transcript().isBlank();
+    if (insufficient) {
+      result
+          .quality(AnalysisQuality.INSUFFICIENT)
+          .message("No se obtuvo suficiente información para evaluar la conversación.");
+    }
+
     // Cada evidencia que supera su umbral se traduce a su Signal.
     Set<Signal> signals = EnumSet.noneOf(Signal.class);
-    for (Evidence ev : evidences) {
+    for (Evidence ev : analysis.evidences()) {
       double threshold = THRESHOLDS.getOrDefault(ev.getType(), DEFAULT_THRESHOLD);
       Signal signal = TYPE_TO_SIGNAL.get(ev.getType());
-      if (signal != null && ev.getScore() > threshold) {
+      if (signal == null) {
+        insufficient = true;
+        result
+            .quality(AnalysisQuality.INSUFFICIENT)
+            .message("No se obtuvo suficiente información para evaluar la conversación.");
+      } else if (ev.getScore() > threshold) {
         signals.add(signal);
       }
     }
 
     // Si no se detectó nada extraño en la conversación, señal de "todo tranquilo".
-    if (signals.isEmpty()) {
+    if (signals.isEmpty() && !insufficient) {
       signals.add(Signal.NO_SUSPICIOUS_CONVERSATION);
     }
 

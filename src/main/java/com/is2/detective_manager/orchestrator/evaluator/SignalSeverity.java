@@ -24,7 +24,11 @@ public final class SignalSeverity {
           Map.entry(Signal.VERIFICATION_AVOIDANCE, Severity.SOSPECHOSO),
           Map.entry(Signal.CODE_REQUEST, Severity.SOSPECHOSO),
           Map.entry(Signal.UNKNOWN_PERSON, Severity.LLAMATIVO),
+          Map.entry(Signal.PROLONGED_VISIT_PRESENCE, Severity.LLAMATIVO),
           Map.entry(Signal.PERSON, Severity.NORMAL),
+          Map.entry(Signal.LADDER_DETECTED, Severity.NORMAL),
+          Map.entry(Signal.TOOL_DETECTED, Severity.NORMAL),
+          Map.entry(Signal.PACKAGE_DETECTED, Severity.NORMAL),
           Map.entry(Signal.KNOWN_PERSON, Severity.NORMAL),
           Map.entry(Signal.NO_THREAT_OBJECT, Severity.NORMAL));
 

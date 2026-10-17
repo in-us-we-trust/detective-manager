@@ -62,30 +62,35 @@ public class RealVideoAnalyzer implements VideoAnalyzer {
     }
 
     if (response == null || response.getData() == null) {
-      log.warn("El ML de análisis de video devolvió una respuesta vacía");
-      return new VideoAnalysisResult(
-          new VideoAnalysisResult.VideoMetadata(0, 0, 0, 0, 0), List.of());
+      throw invalidResponse();
     }
 
     VideoAnalysisResponseDto.DataDto data = response.getData();
     VideoAnalysisResult.VideoMetadata metadata = toMetadata(data.getMetadata());
+    if (data.getObservations() == null) {
+      throw invalidResponse();
+    }
     List<VideoAnalysisResult.VideoObservation> observations =
-        data.getObservations() == null
-            ? List.of()
-            : data.getObservations().stream()
-                .filter(observation -> observation.getTrackId() != null)
-                .map(this::toObservation)
-                .toList();
+        data.getObservations().stream().filter(this::isUsable).map(this::toObservation).toList();
 
     log.info("Análisis de video recibido: {} observaciones", observations.size());
     log.info("observations: {}", observations);
-    return new VideoAnalysisResult(metadata, observations);
+    return new VideoAnalysisResult(metadata, observations, data.getObservations().size());
   }
 
   private VideoAnalysisResult.VideoMetadata toMetadata(
       VideoAnalysisResponseDto.MetadataDto metadata) {
-    if (metadata == null) {
-      return new VideoAnalysisResult.VideoMetadata(0, 0, 0, 0, 0);
+    if (metadata == null
+        || metadata.getWidth() == null
+        || metadata.getWidth() <= 0
+        || metadata.getHeight() == null
+        || metadata.getHeight() <= 0
+        || !nonnegativeFinite(metadata.getFps())
+        || metadata.getFps() == 0
+        || !nonnegativeFinite(metadata.getDurationSeconds())
+        || metadata.getTotalFrames() == null
+        || metadata.getTotalFrames() <= 0) {
+      throw invalidResponse();
     }
     return new VideoAnalysisResult.VideoMetadata(
         metadata.getWidth(),
@@ -93,6 +98,48 @@ public class RealVideoAnalyzer implements VideoAnalyzer {
         metadata.getFps(),
         metadata.getDurationSeconds(),
         metadata.getTotalFrames());
+  }
+
+  private boolean isUsable(VideoAnalysisResponseDto.ObservationDto observation) {
+    return observation != null
+        && observation.getFrame() != null
+        && observation.getFrame() >= 0
+        && nonnegativeFinite(observation.getTimestampSeconds())
+        && observation.getTrackId() != null
+        && observation.getTrackId() >= 0
+        && nonnegativeFinite(observation.getConfidence())
+        && observation.getConfidence() <= 1
+        && percentage(observation.getBboxX1Pct())
+        && percentage(observation.getBboxY1Pct())
+        && percentage(observation.getBboxX2Pct())
+        && percentage(observation.getBboxY2Pct())
+        && observation.getBboxX1Pct() <= observation.getBboxX2Pct()
+        && observation.getBboxY1Pct() <= observation.getBboxY2Pct()
+        && percentage(observation.getCenterXPct())
+        && percentage(observation.getCenterYPct())
+        && (observation.getSmoothCenterXPct() == null
+            || percentage(observation.getSmoothCenterXPct()))
+        && (observation.getSmoothCenterYPct() == null
+            || percentage(observation.getSmoothCenterYPct()))
+        && percentage(observation.getFootXPct())
+        && percentage(observation.getFootYPct())
+        && percentage(observation.getAreaFramePct())
+        && (observation.getSpeedDiagPctPerSecond() == null
+            || nonnegativeFinite(observation.getSpeedDiagPctPerSecond()));
+  }
+
+  private boolean percentage(Double value) {
+    return nonnegativeFinite(value) && value <= 100;
+  }
+
+  private boolean nonnegativeFinite(Double value) {
+    return value != null && Double.isFinite(value) && value >= 0;
+  }
+
+  private DetectiveException invalidResponse() {
+    return new DetectiveException(
+        ExceptionEnum.ML_SERVICE_ERROR,
+        "The ML service returned an invalid video analysis response.");
   }
 
   private VideoAnalysisResult.VideoObservation toObservation(

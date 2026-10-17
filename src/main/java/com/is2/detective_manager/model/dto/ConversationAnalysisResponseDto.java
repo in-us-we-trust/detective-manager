@@ -13,6 +13,6 @@ public class ConversationAnalysisResponseDto {
   @Data
   public static class EvidenceDto {
     private String type;
-    private double score;
+    private Double score;
   }
 }

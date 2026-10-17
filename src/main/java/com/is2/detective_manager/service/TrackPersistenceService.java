@@ -4,6 +4,7 @@ import com.is2.detective_manager.model.entity.AssessmentRecord;
 import com.is2.detective_manager.model.entity.ChunkType;
 import com.is2.detective_manager.model.entity.Track;
 import com.is2.detective_manager.orchestrator.evaluator.Signal;
+import com.is2.detective_manager.orchestrator.step.videoanalysis.VideoPresenceChunk;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,6 +28,19 @@ public interface TrackPersistenceService {
       ChunkType mediaType,
       String mediaUrl);
 
+  /** Guarda el resumen interno de presencia junto con el assessment de video, en la misma fila. */
+  default AssessmentRecord saveAssessment(
+      Track track,
+      UUID requestId,
+      String step,
+      List<Signal> stepSignals,
+      long durationMs,
+      ChunkType mediaType,
+      String mediaUrl,
+      VideoPresenceChunk presence) {
+    return saveAssessment(track, requestId, step, stepSignals, durationMs, mediaType, mediaUrl);
+  }
+
   /**
    * Deriva las señales acumuladas del track juntando las de TODOS sus assessments (fuente de
    * verdad). Independiente de lo que un request individual haya visto.
@@ -44,8 +58,8 @@ public interface TrackPersistenceService {
    *
    * @param chunkSignals señales del chunk en curso (en memoria)
    * @param useMemory si true (primer intento), arma el conjunto como accumulated_signals del track
-   *     + chunkSignals, sin releer assessments. Si false (reintento tras conflicto), relee todas
-   *     las señales de la DB.
+   *     + chunkSignals. Si false (reintento tras conflicto), reconstruye las señales de la DB. En
+   *     ambos casos, la presencia se reconstruye desde los clips persistidos.
    */
   TrackConsolidation consolidateTrack(
       UUID trackId, java.util.List<Signal> chunkSignals, boolean useMemory);

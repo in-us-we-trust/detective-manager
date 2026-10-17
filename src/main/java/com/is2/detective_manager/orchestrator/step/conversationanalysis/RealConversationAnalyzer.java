@@ -3,6 +3,8 @@ package com.is2.detective_manager.orchestrator.step.conversationanalysis;
 import com.is2.detective_manager.exception.DetectiveException;
 import com.is2.detective_manager.exception.ExceptionEnum;
 import com.is2.detective_manager.model.dto.ConversationAnalysisResponseDto;
+import com.is2.detective_manager.orchestrator.AnalysisQuality;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,7 +38,7 @@ public class RealConversationAnalyzer implements ConversationAnalyzer {
   }
 
   @Override
-  public List<Evidence> analyze(byte[] audio) {
+  public ConversationAnalysisResult analyze(byte[] audio) {
     String url = baseUrl + "/api/ml-service/v1/analysis/conversation";
     log.info("Llamando al ML de conversación en: {}", url);
 
@@ -66,14 +68,35 @@ public class RealConversationAnalyzer implements ConversationAnalyzer {
       throw new DetectiveException(ExceptionEnum.ML_SERVICE_ERROR);
     }
 
-    if (response == null || response.getEvidences() == null) {
-      log.warn("El ML de conversación devolvió una respuesta vacía");
-      return List.of();
+    if (response == null || (response.getTranscript() == null && response.getEvidences() == null)) {
+      throw new DetectiveException(
+          ExceptionEnum.ML_SERVICE_ERROR,
+          "El ML de conversación devolvió una respuesta incompleta.");
     }
 
-    // Traducimos el DTO del ML a nuestro modelo Evidence.
-    return response.getEvidences().stream()
-        .map(e -> new Evidence(e.getType(), e.getScore()))
-        .toList();
+    List<Evidence> evidences = new ArrayList<>();
+    AnalysisQuality quality =
+        response.getTranscript() == null || response.getEvidences() == null
+            ? AnalysisQuality.INSUFFICIENT
+            : AnalysisQuality.VALID;
+    List<ConversationAnalysisResponseDto.EvidenceDto> receivedEvidences =
+        response.getEvidences() != null ? response.getEvidences() : List.of();
+    for (ConversationAnalysisResponseDto.EvidenceDto evidence : receivedEvidences) {
+      if (evidence == null
+          || evidence.getType() == null
+          || evidence.getType().isBlank()
+          || evidence.getScore() == null
+          || !Double.isFinite(evidence.getScore())
+          || evidence.getScore() < 0
+          || evidence.getScore() > 1) {
+        quality = AnalysisQuality.INSUFFICIENT;
+        continue;
+      }
+      evidences.add(new Evidence(evidence.getType(), evidence.getScore()));
+    }
+    return new ConversationAnalysisResult(
+        response.getTranscript() != null ? response.getTranscript() : "",
+        List.copyOf(evidences),
+        quality);
   }
 }

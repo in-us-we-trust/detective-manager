@@ -20,6 +20,11 @@ public class StepResult {
   Map<String, Object> data;
   boolean shouldNotify;
 
+  @Builder.Default AnalysisQuality quality = AnalysisQuality.VALID;
+
+  /** Aclaración sobre el análisis, por ejemplo cuando no hubo datos utilizables. */
+  String message;
+
   /**
    * Señales semánticas que este step detectó (ej. UNKNOWN_PERSON). El evaluador las matchea contra
    * reglas.
