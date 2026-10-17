@@ -24,48 +24,48 @@ public class VideoAnalysisResponseDto {
   @JsonIgnoreProperties(ignoreUnknown = true)
   public static class MetadataDto {
 
-    private int width;
-    private int height;
-    private double fps;
+    private Integer width;
+    private Integer height;
+    private Double fps;
 
     @JsonProperty("duration_s")
-    private double durationSeconds;
+    private Double durationSeconds;
 
     @JsonProperty("total_frames")
-    private int totalFrames;
+    private Integer totalFrames;
   }
 
   @Data
   @JsonIgnoreProperties(ignoreUnknown = true)
   public static class ObservationDto {
 
-    private int frame;
+    private Integer frame;
 
     @JsonProperty("timestamp_s")
-    private double timestampSeconds;
+    private Double timestampSeconds;
 
     @JsonProperty("track_id")
     private Long trackId;
 
-    private double confidence;
+    private Double confidence;
 
     @JsonProperty("bbox_x1_pct")
-    private double bboxX1Pct;
+    private Double bboxX1Pct;
 
     @JsonProperty("bbox_y1_pct")
-    private double bboxY1Pct;
+    private Double bboxY1Pct;
 
     @JsonProperty("bbox_x2_pct")
-    private double bboxX2Pct;
+    private Double bboxX2Pct;
 
     @JsonProperty("bbox_y2_pct")
-    private double bboxY2Pct;
+    private Double bboxY2Pct;
 
     @JsonProperty("center_x_pct")
-    private double centerXPct;
+    private Double centerXPct;
 
     @JsonProperty("center_y_pct")
-    private double centerYPct;
+    private Double centerYPct;
 
     @JsonProperty("smooth_center_x_pct")
     private Double smoothCenterXPct;
@@ -74,13 +74,13 @@ public class VideoAnalysisResponseDto {
     private Double smoothCenterYPct;
 
     @JsonProperty("foot_x_pct")
-    private double footXPct;
+    private Double footXPct;
 
     @JsonProperty("foot_y_pct")
-    private double footYPct;
+    private Double footYPct;
 
     @JsonProperty("area_frame_pct")
-    private double areaFramePct;
+    private Double areaFramePct;
 
     @JsonProperty("speed_diag_pct_s")
     private Double speedDiagPctPerSecond;

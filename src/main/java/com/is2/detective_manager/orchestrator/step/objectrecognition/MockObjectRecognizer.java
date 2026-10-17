@@ -16,9 +16,7 @@ public class MockObjectRecognizer implements ObjectRecognizer {
   public ObjectDetectionResult detectObjects(byte[] image) {
     log.info("[mock] Detección de objetos simulada");
     List<DetectedObject> objects =
-        List.of(
-            new DetectedObject("person", 0.95),
-            new DetectedObject("covered_face", 0.88));
+        List.of(new DetectedObject("person", 0.95), new DetectedObject("covered_face", 0.88));
     Map<String, Integer> counts = Map.of("covered_face", 1);
     return new ObjectDetectionResult(objects, counts);
   }

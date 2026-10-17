@@ -3,7 +3,10 @@ package com.is2.detective_manager.orchestrator.step.objectrecognition;
 import com.is2.detective_manager.exception.DetectiveException;
 import com.is2.detective_manager.exception.ExceptionEnum;
 import com.is2.detective_manager.model.dto.ObjectDetectionResponseDto;
+import com.is2.detective_manager.orchestrator.AnalysisQuality;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -54,23 +57,51 @@ public class RealObjectRecognizer implements ObjectRecognizer {
       throw new DetectiveException(ExceptionEnum.ML_SERVICE_ERROR);
     }
 
-    if (response == null || response.getData() == null) {
-      log.warn("El ML de detección de objetos devolvió una respuesta vacía");
-      return new ObjectDetectionResult(List.of(), Map.of());
+    if (response == null
+        || response.getData() == null
+        || (response.getData().getObjects() == null && response.getData().getCounts() == null)) {
+      throw new DetectiveException(
+          ExceptionEnum.ML_SERVICE_ERROR,
+          "El ML de detección de objetos devolvió una respuesta incompleta.");
     }
 
     ObjectDetectionResponseDto.Data data = response.getData();
 
-    List<DetectedObject> objects =
-        data.getObjects() == null
-            ? List.of()
-            : data.getObjects().stream()
-                .map(o -> new DetectedObject(o.getLabel(), o.getConfidence()))
-                .toList();
+    List<DetectedObject> objects = new ArrayList<>();
+    AnalysisQuality quality =
+        data.getObjects() == null || data.getCounts() == null
+            ? AnalysisQuality.INSUFFICIENT
+            : AnalysisQuality.VALID;
+    List<ObjectDetectionResponseDto.DetectedObjectDto> receivedObjects =
+        data.getObjects() != null ? data.getObjects() : List.of();
+    for (ObjectDetectionResponseDto.DetectedObjectDto object : receivedObjects) {
+      if (object == null
+          || object.getLabel() == null
+          || object.getLabel().isBlank()
+          || object.getConfidence() == null
+          || !Double.isFinite(object.getConfidence())
+          || object.getConfidence() < 0
+          || object.getConfidence() > 1) {
+        quality = AnalysisQuality.INSUFFICIENT;
+        continue;
+      }
+      objects.add(new DetectedObject(object.getLabel(), object.getConfidence()));
+    }
 
-    Map<String, Integer> counts = data.getCounts() == null ? Map.of() : data.getCounts();
+    Map<String, Integer> counts = new HashMap<>();
+    Map<String, Integer> receivedCounts = data.getCounts() != null ? data.getCounts() : Map.of();
+    for (Map.Entry<String, Integer> entry : receivedCounts.entrySet()) {
+      if (entry.getKey() == null
+          || entry.getKey().isBlank()
+          || entry.getValue() == null
+          || entry.getValue() < 0) {
+        quality = AnalysisQuality.INSUFFICIENT;
+        continue;
+      }
+      counts.put(entry.getKey(), entry.getValue());
+    }
 
     log.info("Objetos detectados: {}, counts: {}", objects.size(), counts);
-    return new ObjectDetectionResult(objects, counts);
+    return new ObjectDetectionResult(List.copyOf(objects), Map.copyOf(counts), quality);
   }
 }

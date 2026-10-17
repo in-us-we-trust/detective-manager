@@ -47,6 +47,21 @@ public class AssessmentRecord {
   @Column(name = "media_url")
   private String mediaUrl;
 
+  /** Identificador interno del clip; no se expone en los DTOs públicos. */
+  @Column(name = "video_chunk_key", length = 100)
+  private String videoChunkKey;
+
+  @Column(name = "video_chunk_number")
+  private Long videoChunkNumber;
+
+  /** Tiempo con al menos una persona. Null = análisis insuficiente o fallido; 0 = ausencia. */
+  @Column(name = "video_presence_seconds")
+  private Double videoPresenceSeconds;
+
+  /** Recepción del request, independiente de cuánto tarde el análisis. */
+  @Column(name = "video_received_at")
+  private LocalDateTime videoReceivedAt;
+
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
 }

@@ -1,5 +1,6 @@
 package com.is2.detective_manager.service.impl;
 
+import com.is2.detective_manager.configuration.VideoAnalysisProperties;
 import com.is2.detective_manager.model.entity.AssessmentRecord;
 import com.is2.detective_manager.model.entity.ChunkType;
 import com.is2.detective_manager.model.entity.Track;
@@ -9,6 +10,8 @@ import com.is2.detective_manager.orchestrator.evaluator.Assessment;
 import com.is2.detective_manager.orchestrator.evaluator.DangerEvaluator;
 import com.is2.detective_manager.orchestrator.evaluator.Signal;
 import com.is2.detective_manager.orchestrator.evaluator.SignalSeverity;
+import com.is2.detective_manager.orchestrator.step.videoanalysis.VideoPresenceChunk;
+import com.is2.detective_manager.orchestrator.step.videoanalysis.VisitPresenceAccumulator;
 import com.is2.detective_manager.repository.AssessmentRecordRepository;
 import com.is2.detective_manager.repository.TrackRepository;
 import com.is2.detective_manager.service.TrackConsolidation;
@@ -34,6 +37,7 @@ public class TrackPersistenceServiceImpl implements TrackPersistenceService {
   private final TrackRepository trackRepository;
   private final AssessmentRecordRepository assessmentRecordRepository;
   private final DangerEvaluator dangerEvaluator;
+  private final VideoAnalysisProperties videoProperties;
 
   @Override
   @Transactional
@@ -66,6 +70,21 @@ public class TrackPersistenceServiceImpl implements TrackPersistenceService {
       long durationMs,
       ChunkType mediaType,
       String mediaUrl) {
+    return saveAssessment(
+        track, requestId, step, stepSignals, durationMs, mediaType, mediaUrl, null);
+  }
+
+  @Override
+  @Transactional
+  public AssessmentRecord saveAssessment(
+      Track track,
+      UUID requestId,
+      String step,
+      List<Signal> stepSignals,
+      long durationMs,
+      ChunkType mediaType,
+      String mediaUrl,
+      VideoPresenceChunk presence) {
 
     AssessmentRecord record = new AssessmentRecord();
     record.setTrack(track);
@@ -75,6 +94,12 @@ public class TrackPersistenceServiceImpl implements TrackPersistenceService {
     record.setDurationMs(durationMs);
     record.setMediaType(mediaType);
     record.setMediaUrl(mediaUrl);
+    if (presence != null && mediaType == ChunkType.VIDEO) {
+      record.setVideoChunkKey(presence.key());
+      record.setVideoChunkNumber(presence.number());
+      record.setVideoPresenceSeconds(presence.observedSeconds());
+      record.setVideoReceivedAt(presence.receivedAt());
+    }
     record.setCreatedAt(LocalDateTime.now());
     assessmentRecordRepository.save(record);
 
@@ -117,13 +142,37 @@ public class TrackPersistenceServiceImpl implements TrackPersistenceService {
 
     // 1) Conjunto completo de señales.
     //    Primer intento: lo de antes (accumulated del track) + lo nuevo (en memoria),
-    //    sin releer assessments. Reintento: releer todo de la DB (hay cambios de otros).
+    //    Reintento: reconstruir todas las señales de la DB (hay cambios de otros).
+    //    Los tiempos de presencia siempre se reconstruyen desde los clips persistidos.
+    List<AssessmentRecord> assessments =
+        assessmentRecordRepository.findAllByTrackIdOrderByCreatedAtAsc(trackId);
     List<Signal> allSignals;
     if (useMemory) {
       allSignals = fromCsv(track.getAccumulatedSignals());
       allSignals.addAll(chunkSignals);
     } else {
-      allSignals = readSignalsFromAssessments(trackId);
+      allSignals = new ArrayList<>();
+      assessments.forEach(record -> allSignals.addAll(fromCsv(record.getSignals())));
+    }
+
+    List<VideoPresenceChunk> videoChunks =
+        assessments.stream()
+            .filter(record -> record.getMediaType() == ChunkType.VIDEO)
+            .map(
+                record ->
+                    new VideoPresenceChunk(
+                        record.getVideoChunkKey(),
+                        record.getVideoChunkNumber(),
+                        record.getVideoPresenceSeconds(),
+                        record.getVideoReceivedAt() != null
+                            ? record.getVideoReceivedAt()
+                            : record.getCreatedAt()))
+            .toList();
+    double threshold = videoProperties.getVisitProlongedPresenceSeconds();
+    if (Double.isFinite(threshold)
+        && threshold > 0
+        && VisitPresenceAccumulator.maximumObservedSeconds(videoChunks) + 1e-6 >= threshold) {
+      allSignals.add(Signal.PROLONGED_VISIT_PRESENCE);
     }
 
     // 2) Recalcular el veredicto sobre el conjunto completo.

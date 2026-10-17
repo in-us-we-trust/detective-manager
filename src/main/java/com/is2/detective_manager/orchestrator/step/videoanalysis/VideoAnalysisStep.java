@@ -1,8 +1,11 @@
 package com.is2.detective_manager.orchestrator.step.videoanalysis;
 
 import com.is2.detective_manager.configuration.VideoAnalysisProperties;
+import com.is2.detective_manager.exception.DetectiveException;
+import com.is2.detective_manager.exception.ExceptionEnum;
 import com.is2.detective_manager.model.entity.ChunkType;
 import com.is2.detective_manager.model.entity.TrackStatus;
+import com.is2.detective_manager.orchestrator.AnalysisQuality;
 import com.is2.detective_manager.orchestrator.AnalysisStep;
 import com.is2.detective_manager.orchestrator.StepContext;
 import com.is2.detective_manager.orchestrator.StepResult;
@@ -31,8 +34,33 @@ public class VideoAnalysisStep implements AnalysisStep {
 
   @Override
   public StepResult execute(StepContext context) {
-    VideoBehaviorFeatures features =
-        featureCalculator.calculate(videoAnalyzer.analyze(context.getPayload()));
+    VideoAnalysisResult analysis = videoAnalyzer.analyze(context.getPayload());
+    if (analysis == null || analysis.metadata() == null || analysis.observations() == null) {
+      throw new DetectiveException(ExceptionEnum.ML_SERVICE_ERROR);
+    }
+    VideoBehaviorFeatures features = featureCalculator.calculate(analysis);
+    StepResult.StepResultBuilder result =
+        StepResult.builder()
+            .nextStatus(TrackStatus.VIDEO_ANALYZED)
+            .data(Map.of(FEATURES_DATA_KEY, features))
+            .shouldNotify(false);
+    if (features.persons().isEmpty()) {
+      if (analysis.receivedObservationCount() == 0) {
+        return result.message("No se detectaron personas en el video").build();
+      }
+      return result
+          .quality(AnalysisQuality.INSUFFICIENT)
+          .message("No hay observaciones utilizables para evaluar el comportamiento en el video")
+          .build();
+    }
+    boolean incompleteObservations =
+        analysis.receivedObservationCount() > analysis.observations().size();
+    if (incompleteObservations) {
+      result
+          .quality(AnalysisQuality.INSUFFICIENT)
+          .message(
+              "Algunas observaciones del video no pudieron utilizarse para evaluar el comportamiento");
+    }
     Set<Signal> signals = EnumSet.noneOf(Signal.class);
 
     for (VideoBehaviorFeatures.PersonFeatures person : features.persons()) {
@@ -64,16 +92,11 @@ public class VideoAnalysisStep implements AnalysisStep {
       signals.add(Signal.MULTIPLE_PEOPLE);
     }
 
-    // Si no se detectó nada extraño en el video, señal de "todo tranquilo".
-    if (signals.isEmpty()) {
+    // Las observaciones utilizables no alcanzaron los umbrales de comportamiento.
+    if (signals.isEmpty() && !incompleteObservations) {
       signals.add(Signal.NO_SUSPICIOUS_BEHAVIOR);
     }
 
-    StepResult.StepResultBuilder result =
-        StepResult.builder()
-            .nextStatus(TrackStatus.VIDEO_ANALYZED)
-            .data(Map.of(FEATURES_DATA_KEY, features))
-            .shouldNotify(false);
     signals.forEach(result::signal);
     return result.build();
   }

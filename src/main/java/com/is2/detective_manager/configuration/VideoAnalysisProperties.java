@@ -15,7 +15,11 @@ public class VideoAnalysisProperties {
   private double idStitchMaximumGapSeconds = 1.0;
   private double idStitchMaximumDistancePct = 5.0;
   private double idStitchMaximumAreaChangeRatio = 0.35;
+  // Son duraciones observadas, no porcentajes del clip. Los clips de 5 s del gateway no alcanzan
+  // los umbrales por persona; reducirlos convertiría una espera breve en posible merodeo.
   private double prolongedPresenceSeconds = 20.0;
+  // Tiempo de visita con al menos una persona, sin vincular identidades entre clips.
+  private double visitProlongedPresenceSeconds = 20.0;
   private double longStopSeconds = 10.0;
   private double stationarySpeedPctPerSecond = 1.0;
   private double motionWindowSeconds = 0.75;

@@ -3,6 +3,7 @@ package com.is2.detective_manager.orchestrator.step.facerecognition;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -10,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.is2.detective_manager.client.MlServiceApiClient;
+import com.is2.detective_manager.exception.DetectiveException;
 import com.is2.detective_manager.model.dto.FaceEmbeddingResponseDto;
 import com.is2.detective_manager.model.dto.FaceRecognitionClosestMatchDto;
 import com.is2.detective_manager.model.dto.FaceRecognitionResultDto;
@@ -73,13 +75,48 @@ class RealFaceRecognizerTest {
   }
 
   @Test
-  void recognize_nullMlResultIsUnknown() {
+  void recognize_knownPersonWithoutClosestMatchKeepsRecognitionWithoutAName() {
     when(personService.getFaceEmbeddings(DEVICE_ID)).thenReturn(List.of());
-    when(mlServiceApiClient.recognizeFace(any())).thenReturn(null);
+    when(mlServiceApiClient.recognizeFace(any()))
+        .thenReturn(FaceRecognitionResultDto.builder().known(true).build());
 
     FaceRecognitionOutcome outcome = recognizer.recognize(IMAGE, DEVICE_ID);
 
-    assertFalse(outcome.known());
+    assertTrue(outcome.known());
     assertNull(outcome.personName());
+  }
+
+  @Test
+  void recognize_knownPersonNameHasSurroundingWhitespaceRemoved() {
+    when(personService.getFaceEmbeddings(DEVICE_ID)).thenReturn(List.of());
+    when(mlServiceApiClient.recognizeFace(any()))
+        .thenReturn(
+            FaceRecognitionResultDto.builder()
+                .known(true)
+                .closestMatch(
+                    FaceRecognitionClosestMatchDto.builder().personName(" \tJuan Pérez\n").build())
+                .build());
+
+    FaceRecognitionOutcome outcome = recognizer.recognize(IMAGE, DEVICE_ID);
+
+    assertTrue(outcome.known());
+    assertEquals("Juan Pérez", outcome.personName());
+  }
+
+  @Test
+  void recognize_nullMlResultFailsInsteadOfReportingUnknownPerson() {
+    when(personService.getFaceEmbeddings(DEVICE_ID)).thenReturn(List.of());
+    when(mlServiceApiClient.recognizeFace(any())).thenReturn(null);
+
+    assertThrows(DetectiveException.class, () -> recognizer.recognize(IMAGE, DEVICE_ID));
+  }
+
+  @Test
+  void recognize_missingKnownValueFailsInsteadOfReportingUnknownPerson() {
+    when(personService.getFaceEmbeddings(DEVICE_ID)).thenReturn(List.of());
+    when(mlServiceApiClient.recognizeFace(any()))
+        .thenReturn(FaceRecognitionResultDto.builder().build());
+
+    assertThrows(DetectiveException.class, () -> recognizer.recognize(IMAGE, DEVICE_ID));
   }
 }

@@ -52,6 +52,56 @@ Microservicio encargado de gestionar la detección de intrusos y eventos atípic
 | `400` | `device_id` ausente o inválido, body inválido o campo desconocido |
 | `502` | Error al comunicarse con el servicio de ML o de notificaciones |
 
+## Reconocimiento y tiempos de video
+
+Si una visita acumula detecciones reconocidas y no reconocidas, se mantiene en
+`LLAMATIVO / CONTINUE`, salvo que otra regla indique mayor gravedad. No se atribuyen
+esas detecciones a una misma persona ni se confirma `SAFE` por reconocer a alguien.
+
+El [gateway](https://github.com/in-us-we-trust/gateway-microcontroller/blob/master/internal/config/config.go)
+configura por defecto clips de video de **5 segundos**, audio de 10 segundos y una
+sesión de 30 segundos. La sesión no equivale a 30 segundos observados de una persona.
+
+| Señal | Tiempo observado mínimo | Variable de configuración |
+|-------|-------------------------|---------------------------|
+| Presencia prolongada | 20 segundos | `VIDEO_PROLONGED_PRESENCE_SECONDS` |
+| Detención extensa | 10 segundos | `VIDEO_LONG_STOP_SECONDS` |
+| Presencia acumulada en la visita | 20 segundos | `VIDEO_VISIT_PROLONGED_PRESENCE_SECONDS` |
+
+Los dos primeros tiempos se calculan por persona dentro de cada clip. El merodeo sigue
+requiriendo presencia prolongada y otro patrón: detención extensa, cambios de
+dirección o regreso a una posición anterior. Estas señales no pueden confirmarse
+en un clip de 5 segundos. Los tres cambios de dirección sostenidos también necesitan
+más tiempo con la ventana de suavizado actual de 0,75 segundos.
+
+Los clips de 5 segundos sí permiten detectar acercamiento, acercamiento rápido,
+regreso a una posición anterior y varias personas con al menos 2 segundos de
+solapamiento, siempre que las observaciones sostengan esos patrones. Las pruebas
+de tiempos cubren estas posibilidades y los límites del muestreo. Los umbrales se
+conservan para que una espera breve no se convierta en una alerta de merodeo.
+
+La señal `PROLONGED_VISIT_PRESENCE` suma, dentro del mismo `trackId`, los intervalos
+de frames con al menos una persona. Varias personas simultáneas cuentan una sola vez;
+los frames sin detecciones no aportan tiempo. Al alcanzar 20 segundos observados,
+la visita pasa a `LLAMATIVO / CONTINUE`, también si antes estaba en `SAFE`, salvo
+que otra regla indique mayor gravedad. La señal no activa combinaciones de merodeo
+ni afirma que sea la misma persona o que haya permanecido entre clips.
+
+Los tiempos y la identificación de cada clip quedan guardados en `dm_assessments`.
+Se usa el nombre `chunk_NNN.mp4` que ya envía el gateway para ordenar clips,
+deduplicar reenvíos y cortar la secuencia si falta un número. Un clip sin personas
+o con análisis insuficiente/fallido también corta el conteo. Los clips tardíos se
+reordenan; el primer análisis válido de un clip prevalece sobre sus reenvíos.
+Si falta un nombre numerado, se deduplican clips positivos por SHA-256 del contenido;
+archivos idénticos pueden subestimar presencia y no permiten detectar números faltantes.
+Cambiar de clips numerados a no numerados corta la secuencia. Una vez confirmado,
+el hallazgo permanece en el historial de la visita aunque luego no haya personas.
+
+Los assessments anteriores sin tiempos no aportan segundos y cortan la secuencia.
+Las nuevas columnas son opcionales y se incorporan mediante el `ddl-auto=update`
+ya configurado. Se conservan los campos multipart, DTOs, veredictos y códigos de
+pantalla existentes; no se requieren cambios en otros repositorios.
+
 ## Registro de rostros conocidos
 
 DeepFace debe ejecutarse en `ml-service`, donde ya vive la lógica Python de visión

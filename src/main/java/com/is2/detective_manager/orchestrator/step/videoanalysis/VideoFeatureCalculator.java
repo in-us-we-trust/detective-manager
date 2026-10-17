@@ -42,7 +42,7 @@ public class VideoFeatureCalculator {
     List<VideoObservation> observations =
         sanitize(analysis == null ? null : analysis.observations());
     if (observations.isEmpty()) {
-      return new VideoBehaviorFeatures(List.of(), 0, 0, 0, List.of());
+      return new VideoBehaviorFeatures(List.of(), 0, 0, 0, List.of(), 0);
     }
 
     double frameInterval =
@@ -60,7 +60,27 @@ public class VideoFeatureCalculator {
         concurrency.totalSeconds(),
         concurrency.longestSeconds(),
         concurrency.maximumPeople(),
-        distances);
+        distances,
+        observedPresenceSeconds(observations, metadata, frameInterval));
+  }
+
+  /** Union of observed frame intervals: simultaneous people never multiply the observed time. */
+  private double observedPresenceSeconds(
+      List<VideoObservation> observations, VideoMetadata metadata, double frameInterval) {
+    if (!finite(metadata.durationSeconds()) || metadata.durationSeconds() <= 0) {
+      return 0;
+    }
+    double total = 0;
+    double coveredUntil = 0;
+    for (VideoObservation observation : observations) {
+      double start = observation.timestampSeconds();
+      double end = Math.min(metadata.durationSeconds(), start + frameInterval);
+      if (end > coveredUntil && end > start) {
+        total += end - Math.max(start, coveredUntil);
+        coveredUntil = end;
+      }
+    }
+    return Math.min(total, metadata.durationSeconds());
   }
 
   private List<VideoObservation> sanitize(List<VideoObservation> raw) {

@@ -1,6 +1,8 @@
 package com.is2.detective_manager.orchestrator.step.facerecognition;
 
 import com.is2.detective_manager.client.MlServiceApiClient;
+import com.is2.detective_manager.exception.DetectiveException;
+import com.is2.detective_manager.exception.ExceptionEnum;
 import com.is2.detective_manager.model.dto.FaceEmbeddingResponseDto;
 import com.is2.detective_manager.model.dto.FaceRecognitionClosestMatchDto;
 import com.is2.detective_manager.model.dto.FaceRecognitionResultDto;
@@ -37,7 +39,12 @@ public class RealFaceRecognizer implements FaceRecognizer {
     MlFaceRecognitionRequestDto request = new MlFaceRecognitionRequestDto(base64Image, embeddings);
     FaceRecognitionResultDto result = mlServiceApiClient.recognizeFace(request);
 
-    if (result == null || !Boolean.TRUE.equals(result.getKnown())) {
+    if (result == null || result.getKnown() == null) {
+      throw new DetectiveException(
+          ExceptionEnum.ML_SERVICE_ERROR,
+          "El ML de reconocimiento facial devolvió una respuesta incompleta.");
+    }
+    if (!result.getKnown()) {
       return FaceRecognitionOutcome.unknown();
     }
 

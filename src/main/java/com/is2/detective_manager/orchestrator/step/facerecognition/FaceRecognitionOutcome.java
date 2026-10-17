@@ -6,6 +6,13 @@ package com.is2.detective_manager.orchestrator.step.facerecognition;
  */
 public record FaceRecognitionOutcome(boolean known, String personName) {
 
+  public FaceRecognitionOutcome {
+    personName = known && personName != null ? personName.strip() : null;
+    if (personName != null && personName.isBlank()) {
+      personName = null;
+    }
+  }
+
   public static FaceRecognitionOutcome unknown() {
     return new FaceRecognitionOutcome(false, null);
   }

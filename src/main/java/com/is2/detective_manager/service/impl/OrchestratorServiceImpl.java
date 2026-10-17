@@ -7,16 +7,25 @@ import com.is2.detective_manager.model.dto.IntruderNotificationMessageDto;
 import com.is2.detective_manager.model.entity.ChunkType;
 import com.is2.detective_manager.model.entity.Track;
 import com.is2.detective_manager.orchestrator.AnalysisPipeline;
+import com.is2.detective_manager.orchestrator.AnalysisQuality;
 import com.is2.detective_manager.orchestrator.AnalysisStep;
 import com.is2.detective_manager.orchestrator.StepContext;
 import com.is2.detective_manager.orchestrator.StepResult;
+import com.is2.detective_manager.orchestrator.Verdict;
 import com.is2.detective_manager.orchestrator.evaluator.Assessment;
+import com.is2.detective_manager.orchestrator.evaluator.Severity;
 import com.is2.detective_manager.orchestrator.evaluator.Signal;
+import com.is2.detective_manager.orchestrator.step.conversationanalysis.ConversationAnalysisStep;
 import com.is2.detective_manager.orchestrator.step.facerecognition.FaceRecognitionStep;
+import com.is2.detective_manager.orchestrator.step.objectrecognition.ObjectRecognitionStep;
+import com.is2.detective_manager.orchestrator.step.videoanalysis.VideoAnalysisStep;
+import com.is2.detective_manager.orchestrator.step.videoanalysis.VideoBehaviorFeatures;
+import com.is2.detective_manager.orchestrator.step.videoanalysis.VideoPresenceChunk;
 import com.is2.detective_manager.service.OrchestratorService;
 import com.is2.detective_manager.service.PersonService;
 import com.is2.detective_manager.service.TrackConsolidation;
 import com.is2.detective_manager.service.TrackPersistenceService;
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -51,6 +60,13 @@ public class OrchestratorServiceImpl implements OrchestratorService {
   @Override
   public EventChunkResponseDto handleEvent(
       String trackIdStr, String deviceIdStr, ChunkType mediaType, byte[] payload) {
+    return handleEvent(trackIdStr, deviceIdStr, mediaType, payload, null);
+  }
+
+  @Override
+  public EventChunkResponseDto handleEvent(
+      String trackIdStr, String deviceIdStr, ChunkType mediaType, byte[] payload, String filename) {
+    LocalDateTime receivedAt = LocalDateTime.now();
     UUID trackId = UUID.fromString(trackIdStr);
     UUID deviceId = UUID.fromString(deviceIdStr);
     UUID requestId = UUID.randomUUID();
@@ -106,27 +122,47 @@ public class OrchestratorServiceImpl implements OrchestratorService {
     List<Signal> chunkSignals = new ArrayList<>();
     for (CompletableFuture<StepOutcome> future : futures) {
       StepOutcome outcome = future.join();
-      if (outcome == null) {
-        continue; // el step falló; seguimos con los demás
-      }
       outcomes.add(outcome);
+      if (outcome.quality() == AnalysisQuality.FAILED && mediaType != ChunkType.VIDEO) {
+        continue; // Conservar el motivo para la respuesta, sin aportar señales del análisis
+        // fallido.
+      }
       if (outcome.signals() != null) {
         chunkSignals.addAll(outcome.signals());
       }
-      trackPersistenceService.saveAssessment(
-          track,
-          requestId,
-          outcome.stepName(),
-          outcome.signals(),
-          outcome.durationMs(),
-          mediaType,
-          mediaUrl);
+      if (mediaType == ChunkType.VIDEO) {
+        Double observedSeconds = null;
+        if (outcome.quality() == AnalysisQuality.VALID
+            && outcome.data() != null
+            && outcome.data().get(VideoAnalysisStep.FEATURES_DATA_KEY)
+                instanceof VideoBehaviorFeatures features) {
+          observedSeconds = features.observedPresenceSeconds();
+        }
+        trackPersistenceService.saveAssessment(
+            track,
+            requestId,
+            outcome.stepName(),
+            outcome.signals(),
+            outcome.durationMs(),
+            mediaType,
+            mediaUrl,
+            VideoPresenceChunk.from(filename, payload, observedSeconds, receivedAt));
+      } else {
+        trackPersistenceService.saveAssessment(
+            track,
+            requestId,
+            outcome.stepName(),
+            outcome.signals(),
+            outcome.durationMs(),
+            mediaType,
+            mediaUrl);
+      }
     }
 
     // === FASE 2: CONSOLIDACIÓN (protegida, con optimistic retry) ===
     // Recalcula el veredicto sobre TODAS las señales del track. Le pasamos las
-    // señales de ESTE chunk (en memoria): en el camino feliz evita releer los
-    // assessments; ante conflicto, la consolidación relee de la DB.
+    // señales de ESTE chunk (en memoria). Los tiempos se reconstruyen desde la DB;
+    // ante conflicto, también se reconstruyen las señales de los assessments.
     TrackConsolidation consolidation = consolidateWithRetry(trackId, chunkSignals);
 
     String personName = recognizedPersonName(outcomes);
@@ -137,7 +173,7 @@ public class OrchestratorServiceImpl implements OrchestratorService {
     Assessment finalAssessment = consolidation.finalAssessment();
     String message =
         messageWithRecognizedPerson(
-            finalAssessment != null ? finalAssessment.getMessage() : null, personName);
+            analysisMessage(finalAssessment, outcomes, track, chunkSignals), personName);
 
     // === FASE 3: NOTIFICACIÓN (efecto externo, DESPUÉS del commit) ===
     if (consolidation.shouldNotify()) {
@@ -152,25 +188,101 @@ public class OrchestratorServiceImpl implements OrchestratorService {
         additionalInformation(mediaType, personName));
   }
 
-  /** Corre un step capturando errores: si falla, devuelve null (se ignora ese step). */
+  /** Conserva los errores como información del análisis, sin convertirlos en señales. */
   private StepOutcome runStep(AnalysisStep step, StepContext context) {
     String stepName = step.getClass().getSimpleName();
+    long startedAt = System.currentTimeMillis();
     try {
-      long startedAt = System.currentTimeMillis();
       StepResult result = step.execute(context);
+      if (result == null || result.getQuality() == null) {
+        throw new IllegalStateException("El step devolvió un resultado inválido");
+      }
       long durationMs = System.currentTimeMillis() - startedAt;
       log.info(
-          "Step {} ejecutado ({} ms) -> signals={}", stepName, durationMs, result.getSignals());
-      return new StepOutcome(stepName, result.getSignals(), result.getData(), durationMs);
+          "Step {} ejecutado ({} ms) -> quality={} signals={}",
+          stepName,
+          durationMs,
+          result.getQuality(),
+          result.getSignals());
+      return new StepOutcome(
+          stepName,
+          result.getSignals(),
+          result.getData(),
+          durationMs,
+          result.getQuality(),
+          result.getMessage());
     } catch (Exception e) {
       log.error("Step {} falló; se continúa con los demás", stepName, e);
-      return null;
+      return new StepOutcome(
+          stepName,
+          List.of(),
+          Map.of(),
+          System.currentTimeMillis() - startedAt,
+          AnalysisQuality.FAILED,
+          failureMessage(step, context.getMediaType()));
     }
+  }
+
+  private String failureMessage(AnalysisStep step, ChunkType mediaType) {
+    String source;
+    if (step instanceof FaceRecognitionStep) {
+      source = "reconocimiento facial";
+    } else if (step instanceof ObjectRecognitionStep) {
+      source = "objetos";
+    } else if (step instanceof ConversationAnalysisStep) {
+      source = "audio";
+    } else if (step instanceof VideoAnalysisStep) {
+      source = "video";
+    } else {
+      source =
+          mediaType == ChunkType.IMAGE
+              ? "imagen"
+              : mediaType == ChunkType.AUDIO ? "audio" : "video";
+    }
+    return "No se pudo completar el análisis de " + source;
+  }
+
+  private String analysisMessage(
+      Assessment assessment, List<StepOutcome> outcomes, Track track, List<Signal> chunkSignals) {
+    List<String> details =
+        outcomes.stream()
+            .map(StepOutcome::message)
+            .filter(detail -> detail != null && !detail.isBlank())
+            .distinct()
+            .toList();
+    String message = assessment != null ? assessment.getMessage() : null;
+    boolean noPreviousSignals =
+        track.getAccumulatedSignals() == null || track.getAccumulatedSignals().isBlank();
+    // La conclusión genérica no describe un análisis sin datos útiles. Conservar, en cambio,
+    // cualquier hallazgo válido anterior (incluido SAFE) y todas las alertas de mayor severidad.
+    if (!details.isEmpty()
+        && chunkSignals.isEmpty()
+        && noPreviousSignals
+        && assessment != null
+        && assessment.getVerdict() == Verdict.CONTINUE
+        && assessment.getSeverity() == Severity.NORMAL) {
+      message = null;
+    }
+    List<String> parts = new ArrayList<>();
+    if (message != null && !message.isBlank()) {
+      parts.add(message);
+    }
+    for (String detail : details) {
+      if (!parts.contains(detail)) {
+        parts.add(detail);
+      }
+    }
+    return parts.isEmpty() ? message : String.join(" · ", parts);
   }
 
   /** Resultado de un step ya ejecutado (para juntar tras la barrera). */
   private record StepOutcome(
-      String stepName, List<Signal> signals, Map<String, Object> data, long durationMs) {}
+      String stepName,
+      List<Signal> signals,
+      Map<String, Object> data,
+      long durationMs,
+      AnalysisQuality quality,
+      String message) {}
 
   /** Consolida reintentando ante conflicto de versión (cada intento es una tx nueva). */
   private TrackConsolidation consolidateWithRetry(UUID trackId, List<Signal> chunkSignals) {
@@ -207,12 +319,15 @@ public class OrchestratorServiceImpl implements OrchestratorService {
 
   private String recognizedPersonName(List<StepOutcome> outcomes) {
     for (StepOutcome outcome : outcomes) {
-      if (outcome.data() == null) {
+      if (outcome.quality() != AnalysisQuality.VALID
+          || outcome.signals() == null
+          || !outcome.signals().contains(Signal.KNOWN_PERSON)
+          || outcome.data() == null) {
         continue;
       }
       Object value = outcome.data().get(FaceRecognitionStep.PERSON_NAME_DATA_KEY);
       if (value instanceof String name && !name.isBlank()) {
-        return name;
+        return name.strip();
       }
     }
     return null;
@@ -226,10 +341,10 @@ public class OrchestratorServiceImpl implements OrchestratorService {
     if (message == null || message.isBlank() || "Persona reconocida".equals(message)) {
       return recognized;
     }
-    if (message.contains(personName)) {
+    if (message.contains(recognized)) {
       return message;
     }
-    return message + ". " + recognized;
+    return message + (message.endsWith(".") ? " " : ". ") + recognized;
   }
 
   private Map<String, Object> additionalInformation(ChunkType mediaType, String personName) {

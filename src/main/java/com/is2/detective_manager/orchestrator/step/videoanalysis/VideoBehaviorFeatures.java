@@ -8,7 +8,8 @@ public record VideoBehaviorFeatures(
     double totalMultiplePeopleSeconds,
     double longestMultiplePeopleSeconds,
     int maximumSimultaneousPeople,
-    List<RelativeDistance> relativeDistances) {
+    List<RelativeDistance> relativeDistances,
+    double observedPresenceSeconds) {
 
   public record PersonFeatures(
       int personIndex,

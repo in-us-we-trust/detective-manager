@@ -2,14 +2,21 @@ package com.is2.detective_manager.orchestrator.step.videoanalysis;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.is2.detective_manager.exception.DetectiveException;
+import com.is2.detective_manager.exception.ExceptionEnum;
 import com.is2.detective_manager.model.dto.VideoAnalysisResponseDto;
+import java.util.Arrays;
 import java.util.List;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.core.io.ByteArrayResource;
@@ -93,18 +100,148 @@ class RealVideoAnalyzerTest {
     assertEquals(23.5, result.observations().get(0).smoothCenterXPct());
   }
 
+  @Test
+  void analyze_rejectsMissingResponseStructureInsteadOfTreatingItAsAnEmptyVideo() {
+    assertMlServiceError(null);
+    assertMlServiceError(new VideoAnalysisResponseDto());
+
+    VideoAnalysisResponseDto missingMetadata = response();
+    missingMetadata.getData().setMetadata(null);
+    assertMlServiceError(missingMetadata);
+
+    VideoAnalysisResponseDto missingObservations = response();
+    missingObservations.getData().setObservations(null);
+    assertMlServiceError(missingObservations);
+  }
+
+  @Test
+  void analyze_rejectsIncompleteOrInvalidMetadata() {
+    List<Consumer<VideoAnalysisResponseDto.MetadataDto>> invalidMetadata =
+        List.of(
+            metadata -> metadata.setWidth(null),
+            metadata -> metadata.setHeight(0),
+            metadata -> metadata.setFps(null),
+            metadata -> metadata.setFps(Double.NaN),
+            metadata -> metadata.setFps(0.0),
+            metadata -> metadata.setDurationSeconds(null),
+            metadata -> metadata.setDurationSeconds(-1.0),
+            metadata -> metadata.setDurationSeconds(Double.POSITIVE_INFINITY),
+            metadata -> metadata.setTotalFrames(null),
+            metadata -> metadata.setTotalFrames(0));
+    for (Consumer<VideoAnalysisResponseDto.MetadataDto> invalidate : invalidMetadata) {
+      VideoAnalysisResponseDto response = response();
+      invalidate.accept(response.getData().getMetadata());
+      assertMlServiceError(response);
+    }
+  }
+
+  @Test
+  void analyze_acceptsAnExplicitlyEmptyObservationList() {
+    VideoAnalysisResponseDto response = response();
+    response.getData().setObservations(List.of());
+
+    VideoAnalysisResult result = analyzerReturning(response).analyze(new byte[] {1});
+
+    assertTrue(result.observations().isEmpty());
+    assertEquals(0, result.receivedObservationCount());
+  }
+
+  @Test
+  void analyze_preservesValidObservationsWhenOtherEntriesAreMalformed() {
+    VideoAnalysisResponseDto response = response();
+    VideoAnalysisResponseDto.ObservationDto valid = response.getData().getObservations().get(0);
+    VideoAnalysisResponseDto.ObservationDto missingFields =
+        new VideoAnalysisResponseDto.ObservationDto();
+    missingFields.setTrackId(2L);
+    response.getData().setObservations(Arrays.asList(null, missingFields, valid));
+
+    VideoAnalysisResult result = analyzerReturning(response).analyze(new byte[] {1});
+
+    assertEquals(1, result.observations().size());
+    assertEquals(1L, result.observations().get(0).trackId());
+    assertEquals(3, result.receivedObservationCount());
+  }
+
+  @Test
+  void analyze_keepsAllUnusableObservationsDistinctFromNoDetections() {
+    VideoAnalysisResponseDto response = response();
+    response.getData().getObservations().get(0).setConfidence(null);
+
+    VideoAnalysisResult result = analyzerReturning(response).analyze(new byte[] {1});
+
+    assertTrue(result.observations().isEmpty());
+    assertEquals(1, result.receivedObservationCount());
+  }
+
+  @Test
+  void analyze_rejectsOutOfRangeAndNonFiniteObservationMeasurements() {
+    List<Consumer<VideoAnalysisResponseDto.ObservationDto>> invalidObservation =
+        List.of(
+            observation -> observation.setTrackId(-1L),
+            observation -> observation.setConfidence(Double.NaN),
+            observation -> observation.setConfidence(1.1),
+            observation -> observation.setTimestampSeconds(-1.0),
+            observation -> observation.setBboxX1Pct(90.0),
+            observation -> observation.setFootYPct(101.0),
+            observation -> observation.setAreaFramePct(Double.POSITIVE_INFINITY),
+            observation -> observation.setSpeedDiagPctPerSecond(-1.0));
+    for (Consumer<VideoAnalysisResponseDto.ObservationDto> invalidate : invalidObservation) {
+      VideoAnalysisResponseDto response = response();
+      invalidate.accept(response.getData().getObservations().get(0));
+
+      VideoAnalysisResult result = analyzerReturning(response).analyze(new byte[] {1});
+
+      assertTrue(result.observations().isEmpty());
+      assertEquals(1, result.receivedObservationCount());
+    }
+  }
+
+  @Test
+  void analyze_preservesLegacyFallbacksForOptionalSmoothingAndSpeed() {
+    VideoAnalysisResponseDto response = response();
+    VideoAnalysisResponseDto.ObservationDto observation =
+        response.getData().getObservations().get(0);
+    observation.setSmoothCenterXPct(null);
+    observation.setSmoothCenterYPct(null);
+    observation.setSpeedDiagPctPerSecond(null);
+
+    VideoAnalysisResult result = analyzerReturning(response).analyze(new byte[] {1});
+
+    assertEquals(1, result.observations().size());
+    assertEquals(observation.getCenterXPct(), result.observations().get(0).smoothCenterXPct());
+    assertEquals(observation.getCenterYPct(), result.observations().get(0).smoothCenterYPct());
+    assertNull(result.observations().get(0).speedDiagPctPerSecond());
+  }
+
+  private void assertMlServiceError(VideoAnalysisResponseDto response) {
+    DetectiveException exception =
+        assertThrows(
+            DetectiveException.class, () -> analyzerReturning(response).analyze(new byte[] {1}));
+    assertEquals(ExceptionEnum.ML_SERVICE_ERROR.getTitle(), exception.getTitle());
+  }
+
+  private RealVideoAnalyzer analyzerReturning(VideoAnalysisResponseDto response) {
+    RestTemplate restTemplate = mock(RestTemplate.class);
+    when(restTemplate.postForObject(
+            eq("http://ml-service/api/ml-service/v1/analysis/video"),
+            org.mockito.ArgumentMatchers.any(HttpEntity.class),
+            eq(VideoAnalysisResponseDto.class)))
+        .thenReturn(response);
+    return new RealVideoAnalyzer(restTemplate, "http://ml-service");
+  }
+
   private VideoAnalysisResponseDto response() {
     VideoAnalysisResponseDto.MetadataDto metadata = new VideoAnalysisResponseDto.MetadataDto();
     metadata.setWidth(1920);
     metadata.setHeight(1080);
-    metadata.setFps(30);
-    metadata.setDurationSeconds(10);
+    metadata.setFps(30.0);
+    metadata.setDurationSeconds(10.0);
     metadata.setTotalFrames(300);
 
     VideoAnalysisResponseDto.ObservationDto observation =
         new VideoAnalysisResponseDto.ObservationDto();
     observation.setFrame(0);
-    observation.setTimestampSeconds(0);
+    observation.setTimestampSeconds(0.0);
     observation.setTrackId(1L);
     observation.setConfidence(0.94);
     observation.setBboxX1Pct(15.2);

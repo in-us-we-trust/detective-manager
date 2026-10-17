@@ -17,6 +17,8 @@ public class Rule {
   Set<Signal> requires; // señales que deben estar presentes para que la regla aplique
   Severity severity;
   Verdict verdict;
+  // Mayor valor = se muestra antes dentro del mismo nivel. No modifica gravedad ni veredicto.
+  int messagePriority;
   String message;
 
   /** ¿Las señales presentes contienen todas las que esta regla requiere? */

@@ -18,6 +18,9 @@ public enum Signal {
   NO_THREAT_OBJECT, // no se detectó ningún objeto amenazante
   PERSON, // se detectó al menos una persona
   MULTIPLE_PEOPLE, // se detectó más de una persona
+  LADDER_DETECTED, // se detectó una escalera; aporta contexto de la visita
+  TOOL_DETECTED, // se detectó una herramienta; aporta contexto de la visita
+  PACKAGE_DETECTED, // se detectó un paquete; no acredita una entrega
 
   // --- Análisis de conversación (audio) ---
   URGENCY, // presión de urgencia ("ahora", "ya mismo")
@@ -31,6 +34,7 @@ public enum Signal {
 
   // --- Análisis de comportamiento (video) ---
   PROLONGED_PRESENCE, // presencia estable durante un período prolongado
+  PROLONGED_VISIT_PRESENCE, // tiempo observado con personas en varios clips de una visita
   LONG_STOP, // período continuo extenso con poca movilidad
   REPEATED_DIRECTION_CHANGES, // cambios significativos y sostenidos de dirección
   RETURNED_TO_PREVIOUS_POSITION, // se alejó y volvió a una región recorrida

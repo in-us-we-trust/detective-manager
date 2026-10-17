@@ -12,15 +12,17 @@ import org.springframework.stereotype.Component;
 public class MockConversationAnalyzer implements ConversationAnalyzer {
 
   @Override
-  public List<Evidence> analyze(byte[] audio) {
+  public ConversationAnalysisResult analyze(byte[] audio) {
     log.info("[mock] Análisis de conversación simulado");
-    return List.of(
-        new Evidence("URGENCY", 0.9296),
-        new Evidence("AUTHORITY", 0.8557),
-        new Evidence("PRESSURE", 0.6417),
-        new Evidence("VERIFICATION_AVOIDANCE", 0.2818),
-        new Evidence("THREAT", 0.1914),
-        new Evidence("CODE_REQUEST", 0.0056),
-        new Evidence("MONEY_REQUEST", 0.0001));
+    return new ConversationAnalysisResult(
+        "Debe abrir ahora; soy una autoridad.",
+        List.of(
+            new Evidence("URGENCY", 0.9296),
+            new Evidence("AUTHORITY", 0.8557),
+            new Evidence("PRESSURE", 0.6417),
+            new Evidence("VERIFICATION_AVOIDANCE", 0.2818),
+            new Evidence("THREAT", 0.1914),
+            new Evidence("CODE_REQUEST", 0.0056),
+            new Evidence("MONEY_REQUEST", 0.0001)));
   }
 }

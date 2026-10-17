@@ -36,7 +36,8 @@ public class OrchestratorController {
         "Chunk recibido: trackId={} mediaType={} bytes={}", trackId, mediaType, file.getSize());
 
     EventChunkResponseDto response =
-        orchestratorService.handleEvent(trackId, deviceId, mediaType, file.getBytes());
+        orchestratorService.handleEvent(
+            trackId, deviceId, mediaType, file.getBytes(), file.getOriginalFilename());
 
     return ResponseEntity.status(201).body(StandardResponse.of(response));
   }

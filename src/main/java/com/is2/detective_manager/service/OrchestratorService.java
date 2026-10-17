@@ -7,4 +7,9 @@ public interface OrchestratorService {
 
   EventChunkResponseDto handleEvent(
       String trackId, String deviceId, ChunkType mediaType, byte[] payload);
+
+  default EventChunkResponseDto handleEvent(
+      String trackId, String deviceId, ChunkType mediaType, byte[] payload, String filename) {
+    return handleEvent(trackId, deviceId, mediaType, payload);
+  }
 }
