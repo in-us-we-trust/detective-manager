@@ -21,7 +21,7 @@ public class RuleBasedDangerEvaluator implements DangerEvaluator {
   // Primero manda la gravedad; después, la prioridad explícita del mensaje.
   // El orden de escritura y la cantidad de señales no deciden qué se muestra primero.
   // SOSPECHOSO: 900+ combinaciones físicas de visita; 840-860 conversación de visita;
-  // 770-800 patrones anteriores de video; 710-760 conversación anterior; 630-690 indicios
+  // 790 patrones anteriores de video; 710-760 conversación anterior; 630-690 indicios
   // generales.
   // Las combinaciones de visita preceden a las anteriores para conservar su alcance sin atribuir
   // evidencias de distintos análisis a una misma persona.
@@ -44,27 +44,6 @@ public class RuleBasedDangerEvaluator implements DangerEvaluator {
               "Persona desconocida con posible comportamiento de merodeo",
               Signal.LOITERING,
               Signal.UNKNOWN_PERSON),
-          rule(
-              800,
-              Severity.SOSPECHOSO,
-              Verdict.CONTINUE,
-              "Hay alguien desconocido y un acercamiento rápido en la entrada. Revisá antes de abrir.",
-              Signal.FAST_APPROACH,
-              Signal.UNKNOWN_PERSON),
-          rule(
-              780,
-              Severity.SOSPECHOSO,
-              Verdict.CONTINUE,
-              "Permanencia prolongada con movimientos de ida y vuelta",
-              Signal.PROLONGED_PRESENCE,
-              Signal.RETURNED_TO_PREVIOUS_POSITION),
-          rule(
-              770,
-              Severity.SOSPECHOSO,
-              Verdict.CONTINUE,
-              "Permanencia prolongada con detención extensa",
-              Signal.PROLONGED_PRESENCE,
-              Signal.LONG_STOP),
           rule(
               650,
               Severity.SOSPECHOSO,
@@ -130,19 +109,6 @@ public class RuleBasedDangerEvaluator implements DangerEvaluator {
               Verdict.CONTINUE,
               "Rostro cubierto: no permite ver bien quién es. Revisá antes de abrir.",
               Signal.COVERED_FACE),
-          rule(
-              670,
-              Severity.SOSPECHOSO,
-              Verdict.CONTINUE,
-              "Varias personas en la entrada. Confirmá quiénes son antes de abrir.",
-              Signal.MULTIPLE_PEOPLE,
-              Signal.UNKNOWN_PERSON),
-          rule(
-              660,
-              Severity.SOSPECHOSO,
-              Verdict.CONTINUE,
-              "Se detectaron varias personas en la puerta",
-              Signal.MULTIPLE_PEOPLE),
 
           // ===================== SOSPECHOSO: conversación (sueltas) =====================
           rule(
@@ -170,6 +136,28 @@ public class RuleBasedDangerEvaluator implements DangerEvaluator {
               Signal.NO_THREAT_OBJECT),
 
           // ===================== LLAMATIVO: combinaciones leves =====================
+          // La velocidad de acercamiento y la cantidad de personas requieren atención;
+          // los indicios adicionales conservan sus reglas sospechosas o peligrosas.
+          rule(
+              800,
+              Severity.LLAMATIVO,
+              Verdict.CONTINUE,
+              "Hay alguien desconocido y un acercamiento rápido en la entrada. Revisá antes de abrir.",
+              Signal.FAST_APPROACH,
+              Signal.UNKNOWN_PERSON),
+          rule(
+              670,
+              Severity.LLAMATIVO,
+              Verdict.CONTINUE,
+              "Varias personas en la entrada. Confirmá quiénes son antes de abrir.",
+              Signal.MULTIPLE_PEOPLE,
+              Signal.UNKNOWN_PERSON),
+          rule(
+              660,
+              Severity.LLAMATIVO,
+              Verdict.CONTINUE,
+              "Se detectaron varias personas en la puerta",
+              Signal.MULTIPLE_PEOPLE),
           rule(
               210,
               Severity.LLAMATIVO,
@@ -243,7 +231,7 @@ public class RuleBasedDangerEvaluator implements DangerEvaluator {
               120,
               Severity.LLAMATIVO,
               Verdict.CONTINUE,
-              "Movimientos de ida y vuelta en la entrada. Revisá la situación.",
+              "Se detectó un regreso a una posición anterior",
               Signal.RETURNED_TO_PREVIOUS_POSITION),
           rule(
               110,
@@ -440,10 +428,6 @@ public class RuleBasedDangerEvaluator implements DangerEvaluator {
             // Una detección reconocida no permite cerrar como segura una visita que también
             // acumula detecciones desconocidas. Las señales se conservan sin resolver identidades.
             .filter(r -> !mixedRecognition || r.getVerdict() != Verdict.SAFE)
-            .filter(
-                r ->
-                    !present.contains(Signal.PROLONGED_VISIT_PRESENCE)
-                        || r.getVerdict() != Verdict.SAFE)
             .filter(
                 r ->
                     !knownPersonAttention

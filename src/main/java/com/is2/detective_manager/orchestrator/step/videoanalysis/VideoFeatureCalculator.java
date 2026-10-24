@@ -176,7 +176,7 @@ public class VideoFeatureCalculator {
     boolean prolonged = presence >= properties.getProlongedPresenceSeconds();
     boolean longStop = stops.longestSeconds() >= properties.getLongStopSeconds();
     boolean repeatedChanges = directionChanges >= properties.getRepeatedDirectionChanges();
-    boolean loitering = prolonged && (longStop || repeatedChanges || returned);
+    boolean loitering = prolonged && repeatedChanges;
 
     List<TrajectoryPoint> trajectory =
         observations.stream()

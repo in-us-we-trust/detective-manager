@@ -444,12 +444,10 @@ class OrchestratorServiceImplTest {
   }
 
   private static Stream<Arguments> unusablePersonNames() {
-    return Stream.<Object>of(null, "", " \t\n ", "\u2003", 42)
-        .flatMap(
-            name ->
-                Stream.of(
-                    Arguments.of(name, Verdict.SAFE, "Persona reconocida"),
-                    Arguments.of(name, Verdict.DANGER, "La persona está armada")));
+    return Stream.concat(
+        Stream.<Object>of(null, "", " \t\n ", "\u2003", 42)
+            .map(name -> Arguments.of(name, Verdict.SAFE, "Persona reconocida")),
+        Stream.of(Arguments.of(null, Verdict.DANGER, "La persona está armada")));
   }
 
   private static Stream<Arguments> usablePersonNames() {

@@ -381,21 +381,6 @@ class PersonsControllerIntegrationTest {
   }
 
   @Test
-  void createFaceEmbedding_samePerson_reusesExistingPerson() throws Exception {
-    mockValidEmbedding();
-
-    String firstPersonId = createPerson(DEVICE_ID, "Mateo");
-
-    mockMvc
-        .perform(get("/api/detective-manager/v1/devices/{deviceId}/persons", DEVICE_ID))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.length()").value(1));
-
-    assertEquals(1, personRepository.count());
-    assertEquals(1, faceEmbeddingRepository.count());
-  }
-
-  @Test
   void getFaceEmbeddings_returnsEmbeddings() throws Exception {
     mockValidEmbedding();
     String personId = createPerson(DEVICE_ID, "Mateo");

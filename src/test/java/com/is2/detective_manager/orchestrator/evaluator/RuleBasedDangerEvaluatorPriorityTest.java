@@ -194,8 +194,8 @@ class RuleBasedDangerEvaluatorPriorityTest {
                 + " · Habla con urgencia"),
         Arguments.of(
             List.of(Signal.LOITERING, Signal.UNKNOWN_PERSON, Signal.FAST_APPROACH),
-            "Hay alguien desconocido y un acercamiento rápido en la entrada. Revisá antes de abrir."
-                + " · Persona desconocida con posible comportamiento de merodeo"),
+            "Persona desconocida con posible comportamiento de merodeo"
+                + " · Hay alguien desconocido y un acercamiento rápido en la entrada. Revisá antes de abrir."),
         Arguments.of(
             List.of(Signal.AUTHORITY, Signal.CODE_REQUEST, Signal.VERIFICATION_AVOIDANCE),
             "Dice ser autoridad y pide un código de acceso"

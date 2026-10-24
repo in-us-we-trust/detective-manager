@@ -385,15 +385,6 @@ public class DevicesControllerIntegrationTest {
   }
 
   @Test
-  void deleteDevice_existingDevice_returnsNoContent() throws Exception {
-    createDevice(DEVICE_ID);
-
-    mockMvc
-        .perform(delete("/api/detective-manager/v1/devices/{deviceId}", DEVICE_ID))
-        .andExpect(status().isNoContent());
-  }
-
-  @Test
   void deleteDevice_existingDevice_subsequentGetReturnsNotFound() throws Exception {
     createDevice(DEVICE_ID);
 

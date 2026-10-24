@@ -60,6 +60,24 @@ class MixedRecognitionEvidenceTest {
   }
 
   @ParameterizedTest
+  @EnumSource(
+      value = Signal.class,
+      names = {"FAST_APPROACH", "MULTIPLE_PEOPLE"})
+  void quickApproachAndGroupDoNotMakeMixedRecognitionSuspicious(Signal finding) {
+    List<Signal> signals = mixedRecognition();
+    signals.add(Signal.NO_THREAT_OBJECT);
+    signals.add(finding);
+
+    Assessment assessment = evaluator.evaluate(signals);
+
+    assertEquals(Severity.LLAMATIVO, assessment.getSeverity());
+    assertEquals(Verdict.CONTINUE, assessment.getVerdict());
+    assertEquals(AssessmentStatus.EVALUATING, assessment.getStatus());
+    assertTrue(assessment.getMessage().contains(MixedRecognitionEvidence.MESSAGE));
+    assertFalse(assessment.getMessage().contains("podría necesitar ayuda"));
+  }
+
+  @ParameterizedTest
   @MethodSource("suspiciousFindings")
   void suspiciousFindingsKeepTheirSeverityAndLeadTheMessage(List<Signal> findings) {
     List<Signal> signals = mixedRecognition();
@@ -117,9 +135,8 @@ class MixedRecognitionEvidenceTest {
   private static Stream<Arguments> suspiciousFindings() {
     return Stream.of(
         Arguments.of(List.of(Signal.LOITERING)),
-        Arguments.of(List.of(Signal.FAST_APPROACH)),
         Arguments.of(List.of(Signal.COVERED_FACE)),
-        Arguments.of(List.of(Signal.MULTIPLE_PEOPLE)),
+        Arguments.of(List.of(Signal.MULTIPLE_PEOPLE, Signal.PRESSURE)),
         Arguments.of(List.of(Signal.VERIFICATION_AVOIDANCE)),
         Arguments.of(List.of(Signal.AUTHORITY, Signal.MONEY_REQUEST)),
         Arguments.of(List.of(Signal.COVERED_FACE, Signal.FAST_APPROACH)),

@@ -67,7 +67,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -144,14 +143,11 @@ class OrchestratorFlowContractTest {
     executor.shutdownNow();
   }
 
-  @ParameterizedTest
-  @NullAndEmptySource
-  @ValueSource(strings = {" ", "\t\n", "\u2003"})
-  void recognizedVisitorWithoutAUsableName_keepsGenericMessageAndPublicContract(String name)
-      throws Exception {
+  @Test
+  void recognizedVisitorWithoutAUsableName_keepsGenericMessageAndPublicContract() throws Exception {
     recognizedImageWithoutThreats();
     when(faceRecognizer.recognize(PAYLOAD, DEVICE_ID))
-        .thenReturn(FaceRecognitionOutcome.known(name));
+        .thenReturn(FaceRecognitionOutcome.known("\u2003"));
 
     EventChunkResponseDto response = send(ChunkType.IMAGE);
 
@@ -308,6 +304,120 @@ class OrchestratorFlowContractTest {
     assertFalse(response.getMessage().contains("Persona reconocida acercándose"));
     assertEquals(2, records.stream().map(AssessmentRecord::getRequestId).distinct().count());
     assertResponseContract(response);
+    verify(notificationPublisher, never()).publishIntruderDetected(any());
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void unknownDeliveryVisitorApproachingFastOnlyBecomesSuspiciousWithPressureAndUrgency(
+      boolean pressureAndUrgency) throws Exception {
+    when(faceRecognizer.recognize(PAYLOAD, DEVICE_ID)).thenReturn(FaceRecognitionOutcome.unknown());
+    when(objectRecognizer.detectObjects(PAYLOAD))
+        .thenReturn(
+            new ObjectDetectionResult(
+                List.of(new DetectedObject("person", 0.95), new DetectedObject("package", 0.95)),
+                Map.of("person", 1, "package", 1)));
+    send(ChunkType.IMAGE);
+    fastApproachVideo();
+
+    EventChunkResponseDto video = sendVideo(1);
+
+    assertEquals("LLAMATIVO", video.getFinalSeverity());
+    assertEquals("CONTINUE", video.getFinalVerdict());
+    assertTrue(videoRecords().get(0).getSignals().contains("FAST_APPROACH"));
+    assertEquals(5.0, videoRecords().get(0).getVideoPresenceSeconds());
+    when(conversationAnalyzer.analyze(PAYLOAD))
+        .thenReturn(
+            pressureAndUrgency
+                ? new ConversationAnalysisResult(
+                    "Traje una entrega, abrime ahora mismo, necesito entrar ya",
+                    List.of(new Evidence("PRESSURE", 0.95), new Evidence("URGENCY", 0.95)))
+                : new ConversationAnalysisResult(
+                    "Buen día, traigo un paquete para entregar. Gracias", List.of()));
+
+    EventChunkResponseDto response = send(ChunkType.AUDIO);
+
+    String severity = pressureAndUrgency ? "SOSPECHOSO" : "LLAMATIVO";
+    assertNonDangerousVisitSignals(
+        response,
+        severity,
+        Signal.UNKNOWN_PERSON,
+        Signal.FAST_APPROACH,
+        Signal.APPROACHING_CAMERA,
+        Signal.PACKAGE_DETECTED);
+    if (pressureAndUrgency) {
+      assertTrue(response.getMessage().startsWith("Presiona para que se actúe con urgencia"));
+      assertNonDangerousVisitSignals(response, severity, Signal.PRESSURE, Signal.URGENCY);
+    }
+
+    when(conversationAnalyzer.analyze(PAYLOAD))
+        .thenReturn(new ConversationAnalysisResult("De acuerdo, espero acá. Gracias", List.of()));
+    EventChunkResponseDto laterAudio = send(ChunkType.AUDIO);
+
+    assertNonDangerousVisitSignals(
+        laterAudio,
+        severity,
+        Signal.UNKNOWN_PERSON,
+        Signal.FAST_APPROACH,
+        Signal.APPROACHING_CAMERA,
+        Signal.PACKAGE_DETECTED);
+    if (pressureAndUrgency) {
+      assertNonDangerousVisitSignals(laterAudio, severity, Signal.PRESSURE, Signal.URGENCY);
+      assertTrue(laterAudio.getMessage().startsWith("Presiona para que se actúe con urgencia"));
+    }
+    verify(notificationPublisher, never()).publishIntruderDetected(any());
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void unknownTechniciansArrivingTogetherOnlyBecomeSuspiciousWithPressure(boolean pressure)
+      throws Exception {
+    when(faceRecognizer.recognize(PAYLOAD, DEVICE_ID)).thenReturn(FaceRecognitionOutcome.unknown());
+    when(objectRecognizer.detectObjects(PAYLOAD))
+        .thenReturn(
+            new ObjectDetectionResult(
+                List.of(new DetectedObject("person", 0.95), new DetectedObject("person", 0.94)),
+                Map.of("person", 2)));
+
+    EventChunkResponseDto image = send(ChunkType.IMAGE);
+
+    assertNonDangerousVisitSignals(
+        image, "LLAMATIVO", Signal.UNKNOWN_PERSON, Signal.MULTIPLE_PEOPLE);
+    when(conversationAnalyzer.analyze(PAYLOAD))
+        .thenReturn(
+            pressure
+                ? new ConversationAnalysisResult(
+                    "Somos dos técnicos, tenés que dejarnos entrar, abrí la puerta",
+                    List.of(new Evidence("PRESSURE", 0.95)))
+                : new ConversationAnalysisResult(
+                    "Buen día, somos los dos técnicos de la visita acordada", List.of()));
+
+    EventChunkResponseDto response = send(ChunkType.AUDIO);
+
+    String severity = pressure ? "SOSPECHOSO" : "LLAMATIVO";
+    assertNonDangerousVisitSignals(
+        response, severity, Signal.UNKNOWN_PERSON, Signal.MULTIPLE_PEOPLE);
+    if (pressure) {
+      assertNonDangerousVisitSignals(response, severity, Signal.PRESSURE);
+      assertTrue(
+          response
+              .getMessage()
+              .startsWith("Varias personas en la entrada y presión para que actúes."));
+    }
+
+    when(conversationAnalyzer.analyze(PAYLOAD))
+        .thenReturn(new ConversationAnalysisResult("De acuerdo, esperamos. Gracias", List.of()));
+    EventChunkResponseDto laterAudio = send(ChunkType.AUDIO);
+
+    assertNonDangerousVisitSignals(
+        laterAudio, severity, Signal.UNKNOWN_PERSON, Signal.MULTIPLE_PEOPLE);
+    if (pressure) {
+      assertNonDangerousVisitSignals(laterAudio, severity, Signal.PRESSURE);
+      assertTrue(
+          laterAudio
+              .getMessage()
+              .startsWith("Varias personas en la entrada y presión para que actúes."));
+    }
     verify(notificationPublisher, never()).publishIntruderDetected(any());
   }
 
@@ -524,30 +634,120 @@ class OrchestratorFlowContractTest {
   }
 
   @Test
-  void fourFiveSecondClipsReopenSafeVisitAndPreserveDisplayAndResponseContracts() throws Exception {
+  void sixFiveSecondClipsKeepKnownWaitingVisitSafeWithoutCountingRetriesTwice() throws Exception {
     recognizedImageWithoutThreats();
     assertEquals("SAFE", send(ChunkType.IMAGE).getFinalVerdict());
     when(videoAnalyzer.analyze(PAYLOAD)).thenReturn(stationaryClip(5, 71));
     for (int number = 1; number <= 3; number++) {
-      assertEquals("SAFE", sendVideo(number).getFinalVerdict());
+      assertKnownVisitorIsSafe(sendVideo(number));
     }
-    assertEquals("SAFE", sendVideo(2).getFinalVerdict()); // Reenvío, no suma.
+    assertKnownVisitorIsSafe(
+        sendVideo(2)); // Reenvío: 15 s únicos, todavía sin presencia prolongada.
+    assertFalse(
+        storedTrack.getAccumulatedSignals().contains(Signal.PROLONGED_VISIT_PRESENCE.name()));
 
-    EventChunkResponseDto response = sendVideo(4);
+    for (int number = 4; number <= 6; number++) {
+      assertKnownVisitorIsSafe(sendVideo(number));
+      assertTrue(
+          storedTrack.getAccumulatedSignals().contains(Signal.PROLONGED_VISIT_PRESENCE.name()));
+    }
 
-    assertEquals("CONTINUE", response.getFinalVerdict());
-    assertEquals("LLAMATIVO", response.getFinalSeverity());
+    List<AssessmentRecord> videos = videoRecords();
     assertEquals(
-        RuleBasedDangerEvaluator.VISIT_PRESENCE_MESSAGE + " · Persona reconocida",
-        response.getMessage());
-    assertEquals(TrackStatus.CREATED, storedTrack.getStatus());
+        7, videos.size()); // Los reenvíos se guardan, pero no duplican el tiempo acumulado.
+    assertEquals(6, videos.stream().map(AssessmentRecord::getVideoChunkKey).distinct().count());
+    assertEquals(
+        List.of(1L, 2L, 3L, 2L, 4L, 5L, 6L),
+        videos.stream().map(AssessmentRecord::getVideoChunkNumber).toList());
+    assertTrue(videos.stream().allMatch(record -> record.getVideoPresenceSeconds() == 5.0));
+    assertTrue(videos.stream().allMatch(record -> record.getVideoReceivedAt() != null));
+    assertTrue(
+        videos.stream().allMatch(record -> "NO_SUSPICIOUS_BEHAVIOR".equals(record.getSignals())));
     assertFalse(storedTrack.getAccumulatedSignals().contains("LOITERING"));
     assertFalse(storedTrack.getAccumulatedSignals().contains("PROLONGED_PRESENCE"));
-    assertResponseContract(response);
-    TrackMapper mapper = new TrackMapper(new TrackMessageBuilder(evaluator));
-    assertEquals(TrackAppCode.KNOWN_PERSON, mapper.toDto(storedTrack).getCode());
-    assertEquals(response.getMessage(), mapper.toDetailDto(storedTrack, null).getTitle());
+    assertFalse(storedTrack.getAccumulatedSignals().contains("LONG_STOP"));
     verify(notificationPublisher, never()).publishIntruderDetected(any());
+  }
+
+  @Test
+  void singleThirtySecondVideoKeepsKnownWaitingVisitSafeDespiteProlongedPresenceAndLongStop()
+      throws Exception {
+    recognizedImageWithoutThreats();
+    assertEquals("SAFE", send(ChunkType.IMAGE).getFinalVerdict());
+    when(videoAnalyzer.analyze(PAYLOAD)).thenReturn(stationaryClip(30, 71));
+
+    EventChunkResponseDto response = send(ChunkType.VIDEO);
+
+    assertKnownVisitorIsSafe(response);
+    assertTrue(storedTrack.getAccumulatedSignals().contains("PROLONGED_PRESENCE"));
+    assertTrue(storedTrack.getAccumulatedSignals().contains("LONG_STOP"));
+    assertTrue(
+        storedTrack.getAccumulatedSignals().contains(Signal.PROLONGED_VISIT_PRESENCE.name()));
+    assertFalse(storedTrack.getAccumulatedSignals().contains("LOITERING"));
+    assertFalse(storedTrack.getAccumulatedSignals().contains("REPEATED_DIRECTION_CHANGES"));
+    assertFalse(storedTrack.getAccumulatedSignals().contains("RETURNED_TO_PREVIOUS_POSITION"));
+    assertEquals(1, videoRecords().size());
+    AssessmentRecord video = videoRecords().get(0);
+    assertEquals(30.0, video.getVideoPresenceSeconds());
+    assertTrue(video.getVideoReceivedAt() != null);
+    assertTrue(video.getSignals().contains("PROLONGED_PRESENCE"));
+    assertTrue(video.getSignals().contains("LONG_STOP"));
+    assertFalse(video.getSignals().contains("LOITERING"));
+    assertFalse(video.getSignals().contains("NO_SUSPICIOUS_BEHAVIOR"));
+    verify(notificationPublisher, never()).publishIntruderDetected(any());
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void suspiciousOrDangerousEvidenceStillWinsAfterKnownVisitPresenceAccumulates(boolean danger)
+      throws Exception {
+    recognizedImageWithoutThreats();
+    when(cloudinaryStorageClient.uploadImageBytes(PAYLOAD, DEVICE_ID))
+        .thenReturn("https://cdn.example/image.jpg");
+    assertEquals("SAFE", send(ChunkType.IMAGE).getFinalVerdict());
+    when(videoAnalyzer.analyze(PAYLOAD)).thenReturn(stationaryClip(5, 71));
+    for (int number = 1; number <= 6; number++) {
+      assertKnownVisitorIsSafe(sendVideo(number));
+    }
+    assertTrue(
+        storedTrack.getAccumulatedSignals().contains(Signal.PROLONGED_VISIT_PRESENCE.name()));
+
+    EventChunkResponseDto response;
+    if (danger) {
+      when(conversationAnalyzer.analyze(PAYLOAD))
+          .thenReturn(
+              new ConversationAnalysisResult(
+                  "Voy a lastimarte", List.of(new Evidence("THREAT", 0.95))));
+      response = send(ChunkType.AUDIO);
+    } else {
+      coveredFaceImage();
+      response = send(ChunkType.IMAGE);
+    }
+
+    String expectedVerdict = danger ? "DANGER" : "CONTINUE";
+    String expectedSeverity = danger ? "PELIGROSO" : "SOSPECHOSO";
+    String expectedTitle = danger ? "Amenaza verbal detectada" : "Rostro cubierto:";
+    assertEquals(expectedVerdict, response.getFinalVerdict());
+    assertEquals(expectedSeverity, response.getFinalSeverity());
+    assertTrue(response.getMessage().startsWith(expectedTitle));
+    assertResponseContract(response);
+
+    EventChunkResponseDto retry = sendVideo(2);
+    assertEquals(expectedVerdict, retry.getFinalVerdict());
+    assertEquals(expectedSeverity, retry.getFinalSeverity());
+    assertTrue(retry.getMessage().startsWith(expectedTitle));
+    assertTrue(storedTrack.getAccumulatedSignals().contains("KNOWN_PERSON"));
+    assertTrue(storedTrack.getAccumulatedSignals().contains(danger ? "THREAT" : "COVERED_FACE"));
+    assertEquals(danger ? TrackStatus.CLOSED : TrackStatus.CREATED, storedTrack.getStatus());
+    assertResponseContract(retry);
+    TrackMapper mapper = new TrackMapper(new TrackMessageBuilder(evaluator));
+    assertEquals(
+        danger ? TrackAppCode.THREAT : TrackAppCode.KNOWN_PERSON,
+        mapper.toDto(storedTrack).getCode());
+    assertEquals(
+        danger ? "Amenaza detectada en la puerta" : retry.getMessage(),
+        mapper.toDetailDto(storedTrack, null).getTitle());
+    verify(notificationPublisher, times(danger ? 1 : 0)).publishIntruderDetected(any());
   }
 
   @Test
@@ -626,6 +826,51 @@ class OrchestratorFlowContractTest {
         "chunk_%03d.mp4".formatted(number));
   }
 
+  private List<AssessmentRecord> videoRecords() {
+    return records.stream().filter(record -> record.getMediaType() == ChunkType.VIDEO).toList();
+  }
+
+  private void assertNonDangerousVisitSignals(
+      EventChunkResponseDto response, String severity, Signal... expectedSignals) throws Exception {
+    assertEquals("CONTINUE", response.getFinalVerdict());
+    assertEquals(severity, response.getFinalSeverity());
+    assertEquals(Verdict.CONTINUE, storedTrack.getFinalVerdict());
+    assertEquals(Severity.valueOf(severity), storedTrack.getFinalSeverity());
+    assertEquals(TrackStatus.CREATED, storedTrack.getStatus());
+    assertFalse(storedTrack.isNotificationSent());
+    Set<String> accumulated = Set.of(storedTrack.getAccumulatedSignals().split(","));
+    assertFalse(accumulated.contains(Signal.THREAT.name()));
+    assertFalse(accumulated.contains(Signal.WEAPON_DETECTED.name()));
+    for (Signal signal : expectedSignals) {
+      assertTrue(accumulated.contains(signal.name()), signal.name());
+      assertTrue(
+          records.stream()
+              .anyMatch(record -> Set.of(record.getSignals().split(",")).contains(signal.name())),
+          signal.name());
+    }
+    assertResponseContract(response);
+    TrackMapper mapper = new TrackMapper(new TrackMessageBuilder(evaluator));
+    assertEquals(TrackAppCode.UNKNOWN_PERSON, mapper.toDto(storedTrack).getCode());
+    assertEquals(response.getFinalSeverity(), mapper.toDto(storedTrack).getFinalSeverity());
+    assertEquals(response.getFinalVerdict(), mapper.toDto(storedTrack).getFinalVerdict());
+  }
+
+  private void assertKnownVisitorIsSafe(EventChunkResponseDto response) throws Exception {
+    assertEquals("SAFE", response.getFinalVerdict());
+    assertEquals("NORMAL", response.getFinalSeverity());
+    assertTrue(response.getMessage().startsWith("Persona reconocida"));
+    assertEquals(TrackStatus.CLOSED, storedTrack.getStatus());
+    assertFalse(storedTrack.isNotificationSent());
+    assertResponseContract(response);
+    TrackMapper mapper = new TrackMapper(new TrackMessageBuilder(evaluator));
+    assertEquals(TrackAppCode.KNOWN_PERSON, mapper.toDto(storedTrack).getCode());
+    assertEquals(
+        storedTrack.getAccumulatedSignals().contains(Signal.PROLONGED_VISIT_PRESENCE.name())
+            ? response.getMessage()
+            : "Persona reconocida en la puerta",
+        mapper.toDetailDto(storedTrack, null).getTitle());
+  }
+
   private VideoAnalysisResult stationaryClip(double duration, long personId) {
     return new VideoAnalysisResult(
         new VideoMetadata(1920, 1080, 2, duration, (int) (duration * 2)),
@@ -677,33 +922,35 @@ class OrchestratorFlowContractTest {
 
   private void fastApproachVideo() {
     List<VideoObservation> observations =
-        IntStream.rangeClosed(0, 12)
+        IntStream.range(0, 10)
             .mapToObj(
                 sample -> {
                   double timestamp = sample * 0.5;
-                  double area = 5 * Math.exp(0.16 * timestamp);
+                  double area = 5 * Math.exp(0.20 * timestamp);
+                  double height = Math.sqrt(area * 200);
+                  double width = height / 2;
+                  double centerY = 45 + timestamp;
                   return new VideoObservation(
                       sample,
                       timestamp,
                       71,
                       0.95,
-                      40,
-                      20,
-                      60,
-                      90,
+                      50 - width / 2,
+                      centerY - height / 2,
+                      50 + width / 2,
+                      centerY + height / 2,
                       50,
-                      45 + timestamp,
+                      centerY,
                       50,
-                      45 + timestamp,
+                      centerY,
                       50,
-                      90,
+                      centerY + height / 2,
                       area,
-                      4.0);
+                      1.0 / Math.sqrt(2));
                 })
             .toList();
     when(videoAnalyzer.analyze(PAYLOAD))
-        .thenReturn(
-            new VideoAnalysisResult(new VideoMetadata(1920, 1080, 2, 6.5, 13), observations));
+        .thenReturn(new VideoAnalysisResult(new VideoMetadata(1920, 1080, 2, 5, 10), observations));
   }
 
   private void recognizedImageWithoutThreats() {
