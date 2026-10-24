@@ -58,6 +58,11 @@ Si una visita acumula detecciones reconocidas y no reconocidas, se mantiene en
 `LLAMATIVO / CONTINUE`, salvo que otra regla indique mayor gravedad. No se atribuyen
 esas detecciones a una misma persona ni se confirma `SAFE` por reconocer a alguien.
 
+Un desconocido que se acerca rápidamente y la detección de varias personas aportan
+reglas `LLAMATIVO / CONTINUE`, sin descartar las señales detectadas. La urgencia con
+presión, varias personas con presión y los patrones de merodeo o rostro cubierto
+conservan sus reglas `SOSPECHOSO`; armas y amenazas mantienen `PELIGROSO / DANGER`.
+
 El [gateway](https://github.com/in-us-we-trust/gateway-microcontroller/blob/master/internal/config/config.go)
 configura por defecto clips de video de **5 segundos**, audio de 10 segundos y una
 sesión de 30 segundos. La sesión no equivale a 30 segundos observados de una persona.
@@ -68,9 +73,12 @@ sesión de 30 segundos. La sesión no equivale a 30 segundos observados de una p
 | Detención extensa | 10 segundos | `VIDEO_LONG_STOP_SECONDS` |
 | Presencia acumulada en la visita | 20 segundos | `VIDEO_VISIT_PROLONGED_PRESENCE_SECONDS` |
 
-Los dos primeros tiempos se calculan por persona dentro de cada clip. El merodeo sigue
-requiriendo presencia prolongada y otro patrón: detención extensa, cambios de
-dirección o regreso a una posición anterior. Estas señales no pueden confirmarse
+Los dos primeros tiempos se calculan por persona dentro de cada clip. El merodeo
+requiere presencia prolongada y cambios de dirección repetidos. Un regreso puntual
+a una posición anterior conserva su regla individual `LLAMATIVO / CONTINUE`, pero
+no basta para activar merodeo ni una regla sospechosa al combinarse con presencia
+prolongada. Una espera quieta, aunque sea prolongada, tampoco activa merodeo.
+La presencia prolongada, la detención extensa y el merodeo no pueden confirmarse
 en un clip de 5 segundos. Los tres cambios de dirección sostenidos también necesitan
 más tiempo con la ventana de suavizado actual de 0,75 segundos.
 
@@ -83,9 +91,13 @@ conservan para que una espera breve no se convierta en una alerta de merodeo.
 La señal `PROLONGED_VISIT_PRESENCE` suma, dentro del mismo `trackId`, los intervalos
 de frames con al menos una persona. Varias personas simultáneas cuentan una sola vez;
 los frames sin detecciones no aportan tiempo. Al alcanzar 20 segundos observados,
-la visita pasa a `LLAMATIVO / CONTINUE`, también si antes estaba en `SAFE`, salvo
-que otra regla indique mayor gravedad. La señal no activa combinaciones de merodeo
-ni afirma que sea la misma persona o que haya permanecido entre clips.
+la señal aporta una regla `LLAMATIVO / CONTINUE`. Una persona conocida sin objetos
+amenazantes ni otros indicios conserva `NORMAL / SAFE`; las reglas sospechosas,
+peligrosas y de atención por urgencia o presión mantienen su prioridad. La señal
+no activa combinaciones de merodeo ni afirma que sea la misma persona o que haya
+permanecido entre clips. No se acumulan trayectorias, detenciones ni cambios de
+dirección entre videos, por lo que seis fragmentos de 5 segundos no equivalen a un
+video de 30 segundos para detectar esos patrones por persona.
 
 Los tiempos y la identificación de cada clip quedan guardados en `dm_assessments`.
 Se usa el nombre `chunk_NNN.mp4` que ya envía el gateway para ordenar clips,

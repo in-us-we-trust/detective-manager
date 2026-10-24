@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.is2.detective_manager.model.entity.Track;
 import com.is2.detective_manager.model.entity.TrackStatus;
 import com.is2.detective_manager.orchestrator.Verdict;
+import com.is2.detective_manager.orchestrator.evaluator.KnownPersonAttention;
 import com.is2.detective_manager.orchestrator.evaluator.MixedRecognitionEvidence;
 import com.is2.detective_manager.orchestrator.evaluator.RuleBasedDangerEvaluator;
 import com.is2.detective_manager.orchestrator.evaluator.Severity;
@@ -44,9 +45,7 @@ class TrackMessageBuilderTest {
         "VERIFICATION_AVOIDANCE",
         "MONEY_REQUEST",
         "AUTHORITY",
-        "LOITERING",
-        "PROLONGED_PRESENCE,LONG_STOP",
-        "PROLONGED_PRESENCE,RETURNED_TO_PREVIOUS_POSITION"
+        "LOITERING,PROLONGED_PRESENCE,REPEATED_DIRECTION_CHANGES"
       })
   void otherSuspiciousFindings_areVisibleInsteadOfTheHelpSuggestion(String finding) {
     TrackDisplay display =
@@ -56,6 +55,18 @@ class TrackMessageBuilderTest {
     assertFalse(display.title().startsWith("Persona reconocida"));
     assertFalse(display.title().contains("podría necesitar ayuda"));
     assertFalse(display.title().contains("conviene revisar la situación"));
+  }
+
+  @Test
+  void prolongedWaitPreservesTheRecognizedVisitorAttentionMessage() {
+    TrackDisplay display =
+        builder.build(
+            "KNOWN_PERSON,NO_THREAT_OBJECT,URGENCY,PRESSURE,PROLONGED_PRESENCE,LONG_STOP");
+
+    assertEquals(TrackAppCode.KNOWN_PERSON, display.code());
+    assertTrue(display.title().startsWith(KnownPersonAttention.URGENCY_AND_PRESSURE_MESSAGE));
+    assertTrue(display.title().contains("Persona presente durante un período prolongado"));
+    assertTrue(display.title().contains("Persona detenida frente a la puerta"));
   }
 
   @Test
@@ -101,6 +112,17 @@ class TrackMessageBuilderTest {
     assertEquals("Persona no reconocida en la puerta", display.title());
   }
 
+  @ParameterizedTest
+  @MethodSource("ordinaryArrivals")
+  void historyExplainsOrdinaryArrivalsUsingTheExistingPresentationCodes(
+      String signals, TrackAppCode expectedCode, String expectedTitle, String expectedContext) {
+    TrackDisplay display = builder.build(signals);
+
+    assertEquals(expectedCode, display.code());
+    assertTrue(display.title().startsWith(expectedTitle));
+    assertTrue(display.title().contains(expectedContext));
+  }
+
   @Test
   void historyJson_preservesExistingFieldNamesAndEnumValues() {
     Track track = new Track();
@@ -142,5 +164,29 @@ class TrackMessageBuilderTest {
         Arguments.of(
             "KNOWN_PERSON,NO_THREAT_OBJECT,URGENCY,PRESSURE",
             "Persona reconocida con señales de urgencia que ejerce presión; podría necesitar ayuda"));
+  }
+
+  private static Stream<Arguments> ordinaryArrivals() {
+    return Stream.of(
+        Arguments.of(
+            "UNKNOWN_PERSON,FAST_APPROACH,PACKAGE_DETECTED,NO_SUSPICIOUS_CONVERSATION",
+            TrackAppCode.UNKNOWN_PERSON,
+            "Hay alguien desconocido y un acercamiento rápido en la entrada.",
+            "Se detectó un paquete durante la visita"),
+        Arguments.of(
+            "UNKNOWN_PERSON,MULTIPLE_PEOPLE,TOOL_DETECTED,NO_SUSPICIOUS_CONVERSATION",
+            TrackAppCode.UNKNOWN_PERSON,
+            "Varias personas en la entrada.",
+            "Se detectó una herramienta durante la visita"),
+        Arguments.of(
+            "KNOWN_PERSON,UNKNOWN_PERSON,NO_THREAT_OBJECT,FAST_APPROACH",
+            TrackAppCode.KNOWN_PERSON,
+            "Hay alguien desconocido y un acercamiento rápido en la entrada.",
+            MixedRecognitionEvidence.MESSAGE),
+        Arguments.of(
+            "KNOWN_PERSON,UNKNOWN_PERSON,NO_THREAT_OBJECT,MULTIPLE_PEOPLE",
+            TrackAppCode.KNOWN_PERSON,
+            "Varias personas en la entrada.",
+            MixedRecognitionEvidence.MESSAGE));
   }
 }

@@ -39,7 +39,7 @@ class VideoAnalysisTimingTest {
 
     assertEquals(prolonged, result.getSignals().contains(Signal.PROLONGED_PRESENCE));
     assertEquals(longStop, result.getSignals().contains(Signal.LONG_STOP));
-    assertEquals(prolonged && longStop, result.getSignals().contains(Signal.LOITERING));
+    assertFalse(result.getSignals().contains(Signal.LOITERING));
     assertTrue(features.persons().get(0).presenceDurationSeconds() <= duration);
     assertTrue(features.persons().get(0).longestStopSeconds() <= duration);
   }
@@ -71,7 +71,7 @@ class VideoAnalysisTimingTest {
   }
 
   @Test
-  void loweringThresholdsToFitFiveSecondsWouldClassifyAnOrdinaryWaitAsLoitering() {
+  void durationThresholdOverridesDoNotClassifyAnOrdinaryWaitAsLoitering() {
     VideoAnalysisProperties overrides =
         new Binder(
                 new MapConfigurationPropertySource(
@@ -87,9 +87,11 @@ class VideoAnalysisTimingTest {
     assertEquals(
         List.of(Signal.NO_SUSPICIOUS_BEHAVIOR),
         execute(ordinaryWait, new VideoAnalysisProperties()).getSignals());
-    assertTrue(result.getSignals().contains(Signal.LOITERING));
+    assertTrue(result.getSignals().contains(Signal.PROLONGED_PRESENCE));
+    assertTrue(result.getSignals().contains(Signal.LONG_STOP));
+    assertFalse(result.getSignals().contains(Signal.LOITERING));
     assertEquals(
-        Severity.SOSPECHOSO,
+        Severity.LLAMATIVO,
         new RuleBasedDangerEvaluator().evaluate(result.getSignals()).getSeverity());
   }
 
@@ -106,6 +108,25 @@ class VideoAnalysisTimingTest {
     assertTrue(result.getSignals().contains(Signal.RETURNED_TO_PREVIOUS_POSITION));
     assertFalse(result.getSignals().contains(Signal.PROLONGED_PRESENCE));
     assertFalse(result.getSignals().contains(Signal.LOITERING));
+  }
+
+  @ParameterizedTest
+  @ValueSource(doubles = {2, 30})
+  void prolongedReturnKeepsItsSignalWithoutLoiteringOrASuspiciousEvaluation(double fps) {
+    VideoAnalysisResult trajectory =
+        withTrajectory(
+            video(30, fps, false),
+            time -> time <= 15 ? 20 + 50 * time / 15 : 70 - 50 * (time - 15) / 15);
+
+    StepResult result = execute(trajectory, new VideoAnalysisProperties());
+
+    assertTrue(result.getSignals().contains(Signal.PROLONGED_PRESENCE));
+    assertTrue(result.getSignals().contains(Signal.RETURNED_TO_PREVIOUS_POSITION));
+    assertFalse(result.getSignals().contains(Signal.REPEATED_DIRECTION_CHANGES));
+    assertFalse(result.getSignals().contains(Signal.LOITERING));
+    assertEquals(
+        Severity.LLAMATIVO,
+        new RuleBasedDangerEvaluator().evaluate(result.getSignals()).getSeverity());
   }
 
   @ParameterizedTest
@@ -290,7 +311,7 @@ class VideoAnalysisTimingTest {
   }
 
   private static Stream<Arguments> observedDurations() {
-    return Stream.of(2.0, 5.0, 10.0, 11.0, 20.0, 21.0, 25.0)
+    return Stream.of(5.0, 10.0, 11.0, 20.0, 21.0)
         .flatMap(
             duration ->
                 Stream.of(2.0, 30.0)

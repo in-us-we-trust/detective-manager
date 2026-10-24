@@ -48,7 +48,7 @@ class VideoAnalysisStepTest {
 
     assertTrue(result.getSignals().contains(Signal.PROLONGED_PRESENCE));
     assertTrue(result.getSignals().contains(Signal.LONG_STOP));
-    assertTrue(result.getSignals().contains(Signal.LOITERING));
+    assertFalse(result.getSignals().contains(Signal.LOITERING));
     assertTrue(result.getSignals().contains(Signal.APPROACHING_CAMERA));
     assertTrue(result.getSignals().contains(Signal.FAST_APPROACH));
     assertTrue(
@@ -231,7 +231,8 @@ class VideoAnalysisStepTest {
                 new VideoMetadata(1920, 1080, 2, 25, 50), observations, observations.size() + 1));
 
     assertEquals(AnalysisQuality.INSUFFICIENT, result.getQuality());
-    assertTrue(result.getSignals().contains(Signal.LOITERING));
+    assertTrue(result.getSignals().contains(Signal.PROLONGED_PRESENCE));
+    assertFalse(result.getSignals().contains(Signal.LOITERING));
     assertTrue(result.getSignals().contains(Signal.LONG_STOP));
     assertFalse(result.getSignals().contains(Signal.NO_SUSPICIOUS_BEHAVIOR));
   }

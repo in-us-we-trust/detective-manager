@@ -18,38 +18,39 @@ class RuleBasedDangerEvaluatorVideoTest {
             List.of(
                 Signal.UNKNOWN_PERSON,
                 Signal.PROLONGED_PRESENCE,
-                Signal.LONG_STOP,
+                Signal.REPEATED_DIRECTION_CHANGES,
                 Signal.LOITERING));
 
     assertEquals(Severity.SOSPECHOSO, assessment.getSeverity());
     assertEquals(Verdict.CONTINUE, assessment.getVerdict());
     assertEquals(
         "Persona desconocida con posible comportamiento de merodeo"
-            + " · Permanencia prolongada con detención extensa",
+            + " · Persona desconocida con movimientos erráticos"
+            + " · Persona presente durante un período prolongado",
         assessment.getMessage());
   }
 
   @Test
-  void specificLoiteringCause_hasPriorityOverGenericLoitering() {
+  void prolongedPresenceWithOneReturn_isOnlyAttentionWorthy() {
     Assessment assessment =
         evaluator.evaluate(
-            List.of(
-                Signal.PROLONGED_PRESENCE, Signal.RETURNED_TO_PREVIOUS_POSITION, Signal.LOITERING));
+            List.of(Signal.PROLONGED_PRESENCE, Signal.RETURNED_TO_PREVIOUS_POSITION));
 
-    assertEquals(Severity.SOSPECHOSO, assessment.getSeverity());
+    assertEquals(Severity.LLAMATIVO, assessment.getSeverity());
+    assertEquals(Verdict.CONTINUE, assessment.getVerdict());
     assertEquals(
-        "Permanencia prolongada con movimientos de ida y vuelta"
-            + " · Posible comportamiento de merodeo",
+        "Persona presente durante un período prolongado"
+            + " · Se detectó un regreso a una posición anterior",
         assessment.getMessage());
   }
 
   @Test
-  void fastApproachWithUnknownPerson_isSuspicious() {
+  void fastApproachWithUnknownPerson_withoutOtherFindingsIsOnlyAttentionWorthy() {
     Assessment assessment =
         evaluator.evaluate(
             List.of(Signal.UNKNOWN_PERSON, Signal.APPROACHING_CAMERA, Signal.FAST_APPROACH));
 
-    assertEquals(Severity.SOSPECHOSO, assessment.getSeverity());
+    assertEquals(Severity.LLAMATIVO, assessment.getSeverity());
     assertEquals(Verdict.CONTINUE, assessment.getVerdict());
     assertEquals(
         "Hay alguien desconocido y un acercamiento rápido en la entrada. Revisá antes de abrir. · Persona desconocida acercándose",
@@ -98,8 +99,8 @@ class RuleBasedDangerEvaluatorVideoTest {
   void remainingVideoRules_returnExpectedNonCriticalAssessments() {
     assertAssessment(
         List.of(Signal.PROLONGED_PRESENCE, Signal.LONG_STOP),
-        Severity.SOSPECHOSO,
-        "Permanencia prolongada con detención extensa");
+        Severity.LLAMATIVO,
+        "Persona presente durante un período prolongado · Persona detenida frente a la puerta");
     assertAssessment(
         List.of(Signal.LOITERING), Severity.SOSPECHOSO, "Posible comportamiento de merodeo");
     assertAssessment(

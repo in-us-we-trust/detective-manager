@@ -120,6 +120,20 @@ class RuleBasedDangerEvaluatorKnownPersonTest {
     assertFalse(assessment.getMessage().startsWith("Persona reconocida"));
   }
 
+  @Test
+  void prolongedWaitDoesNotEscalateRecognizedVisitorUrgencyAndPressureToSuspicious() {
+    Assessment assessment =
+        evaluator.evaluate(
+            recognizedVisitor(
+                List.of(
+                    Signal.URGENCY, Signal.PRESSURE, Signal.PROLONGED_PRESENCE, Signal.LONG_STOP)));
+
+    assertEquals(Severity.LLAMATIVO, assessment.getSeverity());
+    assertEquals(Verdict.CONTINUE, assessment.getVerdict());
+    assertTrue(
+        assessment.getMessage().startsWith(KnownPersonAttention.URGENCY_AND_PRESSURE_MESSAGE));
+  }
+
   private static List<Signal> recognizedVisitor(List<Signal> requestSignals) {
     List<Signal> signals = new ArrayList<>(List.of(Signal.KNOWN_PERSON, Signal.NO_THREAT_OBJECT));
     signals.addAll(requestSignals);
@@ -150,9 +164,7 @@ class RuleBasedDangerEvaluatorKnownPersonTest {
         List.of(Signal.MULTIPLE_PEOPLE),
         List.of(Signal.CODE_REQUEST),
         List.of(Signal.VERIFICATION_AVOIDANCE),
-        List.of(Signal.LOITERING),
-        List.of(Signal.PROLONGED_PRESENCE, Signal.RETURNED_TO_PREVIOUS_POSITION),
-        List.of(Signal.PROLONGED_PRESENCE, Signal.LONG_STOP),
+        List.of(Signal.LOITERING, Signal.PROLONGED_PRESENCE, Signal.REPEATED_DIRECTION_CHANGES),
         List.of(Signal.UNKNOWN_PERSON, Signal.FAST_APPROACH));
   }
 }
