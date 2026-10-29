@@ -72,6 +72,13 @@
 			<version>42.7.5</version>
 		</dependency>
 
+		<!-- Base embebida para el perfil de validación del TPP. -->
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+
 		<!-- Cloudinary -->
 		<dependency>
 			<groupId>com.cloudinary</groupId>

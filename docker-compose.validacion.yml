@@ -1,0 +1,19 @@
+# ML debe estar disponible en ML_SERVICE_BASE_URL (host: puerto 8000 por defecto).
+# Este compose no levanta PostgreSQL, RabbitMQ ni servicios del resto del sistema.
+services:
+  detective-manager:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: validacion
+      PORT: 8088
+      ML_SERVICE_BASE_URL: ${ML_SERVICE_BASE_URL:-http://host.docker.internal:8000}
+      VALIDATION_MEDIA_DIRECTORY: /app/validation-data/images
+      VALIDATION_NOTIFICATIONS_FILE: /app/validation-data/notifications.jsonl
+    ports:
+      - "127.0.0.1:8088:8088"
+    volumes:
+      - ./validation-data:/app/validation-data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

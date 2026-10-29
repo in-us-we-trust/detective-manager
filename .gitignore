@@ -33,6 +33,10 @@ src/main/resources/application-local.properties
 *.log
 logs/
 
+# Evidencia local de validación (imágenes, notificaciones y resultados)
+validation-data/
+__pycache__/
+
 # Environment / secrets
 *.env
 .env

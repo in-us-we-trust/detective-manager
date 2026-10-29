@@ -38,6 +38,7 @@ services:
       ml-service:
         condition: service_started
     environment:
+      SPRING_PROFILES_ACTIVE: local
       PORT: 8080
       DB_URL: jdbc:postgresql://db:5432/detective_db
       DB_USERNAME: detective

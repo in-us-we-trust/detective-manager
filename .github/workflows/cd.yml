@@ -15,6 +15,8 @@ env:
 
 jobs:
   deploy:
+    # La ejecución manual tampoco debe desplegar la rama experimental validacion.
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
 
     steps:
