@@ -106,6 +106,40 @@ class ValidationEventRunnerTest(unittest.TestCase):
                     self.assertEqual(error.exception.code, 2)
                     send.assert_not_called()
 
+    def test_audit_failure_invalidates_created_response_and_keeps_correlation(self):
+        for audit_status in ("FAILED", "RECORDED"):
+            with self.subTest(status=audit_status), tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / "audio.wav"
+                path.write_bytes(b"audio")
+                response = unittest.mock.MagicMock()
+                response.__enter__.return_value = response
+                response.status = 201
+                response.read.return_value = b'{"data":{"finalVerdict":"CONTINUE"}}'
+                response.headers = {
+                    "X-Validation-Request-Id": "11111111-1111-4111-8111-111111111111",
+                    "X-Validation-Audit-Status": audit_status,
+                    "X-Validation-Run-Valid": "false",
+                }
+                with patch.object(runner, "urlopen", return_value=response), \
+                        redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                    result = runner.main(["--file", str(path), "--output-dir", directory])
+                self.assertEqual(result, 1)
+                saved = json.loads(next(Path(directory).glob("*.json")).read_text())
+                self.assertEqual(saved["httpStatus"], 201)
+                self.assertEqual(saved["validationAudit"]["requestId"], response.headers["X-Validation-Request-Id"])
+                self.assertFalse(saved["validationAudit"]["validForQuantitativeValidation"])
+
+    def test_recorded_complete_audit_headers_are_preserved(self):
+        response = unittest.mock.MagicMock()
+        response.headers = {
+            "X-Validation-Request-Id": "22222222-2222-4222-8222-222222222222",
+            "X-Validation-Audit-Status": "RECORDED",
+            "X-Validation-Run-Valid": "true",
+        }
+        result = runner.validation_audit_headers(response)
+        self.assertTrue(result["validForQuantitativeValidation"])
+        self.assertEqual(result["status"], "RECORDED")
+
 
 if __name__ == "__main__":
     unittest.main()

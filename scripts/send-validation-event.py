@@ -79,6 +79,24 @@ def decode_response(body):
         return decoded
 
 
+def validation_audit_headers(response):
+    headers = getattr(response, "headers", None)
+    if headers is None:
+        return None
+    values = []
+    for name in ("X-Validation-Request-Id", "X-Validation-Audit-Status", "X-Validation-Run-Valid"):
+        value = headers.get(name)
+        values.append(value if isinstance(value, str) else None)
+    request_id, status, run_valid = values
+    if not any(values):
+        return None
+    return {
+        "requestId": request_id,
+        "status": status,
+        "validForQuantitativeValidation": run_valid == "true" and status == "RECORDED",
+    }
+
+
 def submit_event(path, payload, media_type, device_id, track_id, base_url, timeout):
     fields = {"trackId": track_id, "deviceId": device_id, "mediaType": media_type}
     boundary, body = build_multipart(fields, path.name, payload)
@@ -101,14 +119,17 @@ def submit_event(path, payload, media_type, device_id, track_id, base_url, timeo
         "httpStatus": None,
         "response": None,
         "error": None,
+        "validationAudit": None,
     }
     started = time.monotonic()
     try:
         with urlopen(request, timeout=timeout) as response:
             evidence["httpStatus"] = response.status
+            evidence["validationAudit"] = validation_audit_headers(response)
             evidence["response"] = decode_response(response.read())
     except HTTPError as error:
         evidence["httpStatus"] = error.code
+        evidence["validationAudit"] = validation_audit_headers(error)
         evidence["response"] = decode_response(error.read())
         evidence["error"] = str(error)
     except (URLError, TimeoutError, OSError) as error:
@@ -183,7 +204,11 @@ def main(argv=None):
     print(json.dumps(evidence, ensure_ascii=False, indent=2))
     print("Evidencia guardada: " + str(output_file))
     status = evidence["httpStatus"]
-    return 0 if status is not None and 200 <= status < 300 and evidence["error"] is None else 1
+    audit = evidence["validationAudit"]
+    audit_failed = audit is not None and not audit["validForQuantitativeValidation"]
+    if audit_failed:
+        print("La solicitud no es válida para la validación cuantitativa; revisá su auditoría.", file=sys.stderr)
+    return 0 if status is not None and 200 <= status < 300 and evidence["error"] is None and not audit_failed else 1
 
 
 if __name__ == "__main__":

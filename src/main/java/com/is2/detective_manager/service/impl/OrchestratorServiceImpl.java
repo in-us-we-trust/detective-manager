@@ -25,6 +25,7 @@ import com.is2.detective_manager.service.OrchestratorService;
 import com.is2.detective_manager.service.PersonService;
 import com.is2.detective_manager.service.TrackConsolidation;
 import com.is2.detective_manager.service.TrackPersistenceService;
+import com.is2.detective_manager.validation.audit.ValidationAuditRecorder;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
@@ -38,6 +39,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
@@ -54,6 +56,13 @@ public class OrchestratorServiceImpl implements OrchestratorService {
 
   private final ExecutorService analysisExecutor;
 
+  private ValidationAuditRecorder validationAuditRecorder;
+
+  @Autowired(required = false)
+  public void setValidationAuditRecorder(ValidationAuditRecorder validationAuditRecorder) {
+    this.validationAuditRecorder = validationAuditRecorder;
+  }
+
   /** Reintentos de la consolidación ante conflicto de versión (otro request en paralelo). */
   private static final int MAX_CONSOLIDATION_ATTEMPTS = 5;
 
@@ -69,7 +78,12 @@ public class OrchestratorServiceImpl implements OrchestratorService {
     LocalDateTime receivedAt = LocalDateTime.now();
     UUID trackId = UUID.fromString(trackIdStr);
     UUID deviceId = UUID.fromString(deviceIdStr);
-    UUID requestId = UUID.randomUUID();
+    UUID auditRequestId =
+        validationAuditRecorder != null ? validationAuditRecorder.currentRequestId() : null;
+    UUID requestId = auditRequestId != null ? auditRequestId : UUID.randomUUID();
+    if (validationAuditRecorder != null) {
+      validationAuditRecorder.identify(trackId, deviceId, mediaType, filename, payload);
+    }
     log.info(
         "Procesando chunk requestId={} trackId={} device={} mediaType={}",
         requestId,
@@ -91,9 +105,17 @@ public class OrchestratorServiceImpl implements OrchestratorService {
     }
 
     List<AnalysisStep> steps = pipeline.stepsFor(mediaType);
+    if (validationAuditRecorder != null) {
+      validationAuditRecorder.expectedSteps(
+          steps.stream().map(step -> step.getClass().getSimpleName()).toList());
+    }
     if (steps.isEmpty()) {
       log.info("No hay steps para mediaType={}", mediaType);
-      return buildResponse(trackIdStr, mediaType, null);
+      EventChunkResponseDto response = buildResponse(trackIdStr, mediaType, null);
+      if (validationAuditRecorder != null) {
+        validationAuditRecorder.response(response);
+      }
+      return response;
     }
 
     // === FASE 1: ANÁLISIS (steps EN PARALELO, luego persistencia secuencial) ===
@@ -110,8 +132,21 @@ public class OrchestratorServiceImpl implements OrchestratorService {
             .build();
 
     List<CompletableFuture<StepOutcome>> futures = new ArrayList<>();
+    ValidationAuditRecorder.Context auditContext =
+        validationAuditRecorder != null ? validationAuditRecorder.capture() : null;
     for (AnalysisStep step : steps) {
-      futures.add(CompletableFuture.supplyAsync(() -> runStep(step, context), analysisExecutor));
+      futures.add(
+          CompletableFuture.supplyAsync(
+              () -> {
+                if (validationAuditRecorder == null) {
+                  return runStep(step, context);
+                }
+                try (ValidationAuditRecorder.Scope ignored =
+                    validationAuditRecorder.attach(auditContext, step.getClass().getSimpleName())) {
+                  return runStep(step, context);
+                }
+              },
+              analysisExecutor));
     }
 
     // BARRERA: esperar a que todos terminen (ok o con error).
@@ -180,24 +215,42 @@ public class OrchestratorServiceImpl implements OrchestratorService {
       maybeNotifyDanger(trackId, deviceId, message);
     }
 
-    return buildResponse(
-        trackIdStr,
-        mediaType,
-        consolidation,
-        message,
-        additionalInformation(mediaType, personName));
+    EventChunkResponseDto response =
+        buildResponse(
+            trackIdStr,
+            mediaType,
+            consolidation,
+            message,
+            additionalInformation(mediaType, personName));
+    if (validationAuditRecorder != null) {
+      validationAuditRecorder.response(response);
+    }
+    return response;
   }
 
   /** Conserva los errores como información del análisis, sin convertirlos en señales. */
   private StepOutcome runStep(AnalysisStep step, StepContext context) {
     String stepName = step.getClass().getSimpleName();
     long startedAt = System.currentTimeMillis();
+    if (validationAuditRecorder != null) {
+      validationAuditRecorder.stepStarted(stepName);
+    }
     try {
       StepResult result = step.execute(context);
       if (result == null || result.getQuality() == null) {
         throw new IllegalStateException("El step devolvió un resultado inválido");
       }
       long durationMs = System.currentTimeMillis() - startedAt;
+      if (validationAuditRecorder != null) {
+        validationAuditRecorder.stepFinished(
+            stepName,
+            result.getSignals(),
+            result.getQuality(),
+            durationMs,
+            result.getData(),
+            result.getMessage(),
+            null);
+      }
       log.info(
           "Step {} ejecutado ({} ms) -> quality={} signals={}",
           stepName,
@@ -213,6 +266,16 @@ public class OrchestratorServiceImpl implements OrchestratorService {
           result.getMessage());
     } catch (Exception e) {
       log.error("Step {} falló; se continúa con los demás", stepName, e);
+      if (validationAuditRecorder != null) {
+        validationAuditRecorder.stepFinished(
+            stepName,
+            List.of(),
+            AnalysisQuality.FAILED,
+            System.currentTimeMillis() - startedAt,
+            Map.of(),
+            failureMessage(step, context.getMediaType()),
+            e);
+      }
       return new StepOutcome(
           stepName,
           List.of(),
@@ -288,17 +351,33 @@ public class OrchestratorServiceImpl implements OrchestratorService {
   private TrackConsolidation consolidateWithRetry(UUID trackId, List<Signal> chunkSignals) {
     ObjectOptimisticLockingFailureException lastConflict = null;
     for (int attempt = 1; attempt <= MAX_CONSOLIDATION_ATTEMPTS; attempt++) {
+      if (validationAuditRecorder != null) {
+        validationAuditRecorder.consolidationAttempt(attempt);
+      }
       try {
         // attempt==1: usa las señales en memoria (evita releer). Reintentos: relee.
         boolean firstAttempt = attempt == 1;
-        return trackPersistenceService.consolidateTrack(trackId, chunkSignals, firstAttempt);
+        TrackConsolidation result =
+            trackPersistenceService.consolidateTrack(trackId, chunkSignals, firstAttempt);
+        if (validationAuditRecorder != null) {
+          validationAuditRecorder.consolidationCommitted();
+        }
+        return result;
       } catch (ObjectOptimisticLockingFailureException conflict) {
+        if (validationAuditRecorder != null) {
+          validationAuditRecorder.consolidationRolledBack(conflict);
+        }
         lastConflict = conflict;
         log.warn(
             "Conflicto de versión consolidando track {} (intento {}/{}). Reintentando.",
             trackId,
             attempt,
             MAX_CONSOLIDATION_ATTEMPTS);
+      } catch (RuntimeException failure) {
+        if (validationAuditRecorder != null) {
+          validationAuditRecorder.consolidationRolledBack(failure);
+        }
+        throw failure;
       }
     }
     log.error(

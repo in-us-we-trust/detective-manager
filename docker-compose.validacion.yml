@@ -11,6 +11,7 @@ services:
       ML_SERVICE_BASE_URL: ${ML_SERVICE_BASE_URL:-http://host.docker.internal:8000}
       VALIDATION_MEDIA_DIRECTORY: /app/validation-data/images
       VALIDATION_NOTIFICATIONS_FILE: /app/validation-data/notifications.jsonl
+      VALIDATION_AUDIT_DIRECTORY: /app/validation-data/audit
     ports:
       - "127.0.0.1:8088:8088"
     volumes:

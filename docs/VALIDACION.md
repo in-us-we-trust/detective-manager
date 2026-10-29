@@ -152,7 +152,53 @@ Se mantiene el requisito existente de una imagen previa en el track para constru
 
 La base H2 se vacía en cada reinicio, incluyendo personas conocidas, embeddings, tracks y assessments. Las imágenes, notificaciones y archivos de evidencia permanecen. Exportar las consultas necesarias antes de detener el proceso. Usar `--output-dir` para separar lotes de evidencia; los archivos locales están ignorados por Git.
 
+## Auditoría de cada evidencia
+
+Sólo el perfil `validacion` registra cada `POST /api/detective-manager/v1/orchestrator/events` mediante `ValidationAuditRecorder`. No agrega llamadas a ML, no modifica sus respuestas funcionales y conserva el orden del pipeline y las reglas existentes. H2 continúa en memoria; estos archivos quedan en disco:
+
+```text
+validation-data/audit/{trackId}/{requestId}.json
+validation-data/audit/{trackId}/{requestId}/ml-001.json.gz
+validation-data/audit/{trackId}/{requestId}/ml-002.json.gz
+```
+
+La raíz se configura con `VALIDATION_AUDIT_DIRECTORY` (`./validation-data/audit` por defecto). En Docker queda dentro del volumen `validation-data`. Una solicitud rechazada antes de identificar un track se guarda bajo `_unresolved`.
+
+El JSON principal contiene identificación, SHA-256 y tamaño del archivo, nombre original, fechas UTC, estado HTTP, resultados de cada step, sus señales, calidad, duración, datos derivados y errores. Guarda también las señales acumuladas, las señales efectivas usadas por el evaluador, la regla ganadora, el veredicto, la severidad y el mensaje después de **cada evidencia**, incluso si el track continúa abierto. El mensaje funcional final queda en `response`; el mensaje de la evaluación está en `consolidation`.
+
+El snapshot se toma dentro de la consolidación y se confirma después del commit. Los intentos revertidos por concurrencia se identifican en `consolidationAttempts`; no se presentan como resultados confirmados. La regla se captura en la evaluación original, sin volver a evaluarla. El contexto del request se propaga explícitamente a los workers y se limpia al terminar.
+
+`mlResponses` referencia JSON comprimidos con la respuesta HTTP original de ML **antes de convertirla a DTO o señales**: resultados faciales, objetos y confidencias, transcripción, evidencias y scores, metadatos y observaciones de video. Se conservan también campos que los analizadores no utilizan y respuestas HTTP de error. Cada intercambio incluye endpoint, step, estado HTTP, duración y hashes. Un cuerpo que no sea JSON queda identificado como inválido y su texto se registra sanitizado.
+
+La auditoría nunca copia el archivo multimedia ni las solicitudes salientes, que contienen Base64 y embeddings conocidos. Si una respuesta de error devuelve esos datos, se omiten y se identifican sus campos redactados. Las respuestas auxiliares de generación de embeddings conservan sus metadatos y omiten el vector, para evitar duplicarlo. Las referencias `path` son relativas a la carpeta del track.
+
+Cada archivo se escribe en un temporal de su mismo directorio, se sincroniza y se publica mediante un movimiento atómico. Primero se publican los gzip y después el JSON principal. Un fallo de captura o escritura se registra como `FAILED` y se informa en logs; nunca se considera una ejecución válida. Los registros terminados permanecen después de reiniciar la aplicación. Una interrupción abrupta durante una solicitud puede impedir que llegue a generarse su registro final.
+
+La respuesta mantiene su status y JSON y agrega estos headers exclusivos del perfil:
+
+| Header | Significado |
+|--------|-------------|
+| `X-Validation-Request-Id` | UUID del registro, igual al `requestId` de los assessments |
+| `X-Validation-Audit-Status` | `RECORDED` o `FAILED` |
+| `X-Validation-Run-Valid` | `true` únicamente si la auditoría y los análisis requeridos están completos |
+
+El JSON distingue `auditStatus` de `analysisStatus` (`COMPLETE`, `PARTIAL`, `FAILED`). Un HTTP `201` con steps `INSUFFICIENT` o `FAILED` queda registrado explícitamente y tiene `validForQuantitativeValidation=false`. También invalidan la ejecución la falta de respuestas ML capturadas, una consolidación sin confirmar y los errores de ML auxiliares. Esta marca identifica la integridad de la ejecución; no indica que la clasificación del modelo sea correcta.
+
+`send-validation-event.py` conserva esos headers en `validationAudit` y devuelve un código de salida distinto de cero si el servidor marca la ejecución como inválida, incluso con HTTP `201`. Un fallo debe conservarse y analizarse como parte del lote; no descartarlo silenciosamente al calcular métricas.
+
+La latencia HTTP incluye la captura y la escritura de auditoría. `steps[].durationMs` y `mlResponses[].durationMs` describen intervalos distintos; no equivalen por sí solos al tiempo puro de inferencia.
+
+Las pruebas de auditoría usan datos estructurales entregados directamente al recorder, el evaluador real, H2 real y respuestas del filtro HTTP. No sustituyen ML ni ejecutan inferencias. Cubren las tres modalidades, acumulación, errores parciales, concurrencia, redacción, escrituras fallidas, aislamiento de perfiles y conservación de archivos al limpiar la base. El flujo HTTP completo se prueba también con los analizadores reales y una conexión local rechazada, sin implementar un servicio ML sustituto.
+
+```bash
+mvn '-Dtest=ValidationAuditRecorderTest,AuditConsolidationIntegrationTest,ValidationAuditFilterTest,AuditProfileIsolationTest,ValidationAuditFailureFlowIntegrationTest' test
+```
+
+Verificación de esta implementación: 27 pruebas nuevas de auditoría y 200 regresiones de algoritmos/evaluador aprobadas (227 Java), 42 pruebas Python aprobadas, Spotless y empaquetado correctos. Esta selección no usa mocks de ML ni requiere PostgreSQL externo. Las inferencias con material real se ejecutarán durante los lotes de validación.
+
 ## Registro de una persona conocida
+
+Para preparar los dos dispositivos y sus personas de referencia de forma reproducible, usar [Inicialización de la validación](INICIALIZACION_VALIDACION.md). El script comprueba el estado existente y evita duplicaciones, manteniendo H2 en memoria.
 
 ```http
 POST /api/detective-manager/v1/devices/{deviceId}/persons
@@ -178,7 +224,7 @@ python3 -m unittest discover -s scripts/tests -v
 
 Las pruebas Java del perfil levantan Spring y H2 reales, conservan los analizadores reales y sustituyen la respuesta HTTP del ML mediante `MockRestServiceServer`. Verifican la ausencia de clientes Cloudinary/Rabbit, imagen/audio/video, persistencia de señales, recuperación de embeddings numéricos, descarga de imagen, notificación local y manejo de fallos de ML. Son pruebas de integración del manager y sus contratos HTTP; no miden la calidad de los modelos.
 
-Comprobación al preparar esta configuración (29/10/2026): 367 pruebas Java aprobadas en 31 clases, 6 pruebas Python aprobadas, Spotless correcto, JAR generado y cobertura de líneas de 77,19 % (1865/2416). Se ejecutaron todas las clases que no requieren PostgreSQL externo, incluyendo las nuevas pruebas de integración con H2. Comando reproducible:
+Comprobación de la configuración inicial, anterior a incorporar la auditoría (29/10/2026): 367 pruebas Java aprobadas en 31 clases, 6 pruebas Python aprobadas, Spotless correcto, JAR generado y cobertura de líneas de 77,19 % (1865/2416). Se ejecutaron todas las clases que no requieren PostgreSQL externo, incluyendo las pruebas de integración con H2. Comando reproducible de aquella selección:
 
 ```bash
 mvn '-Dtest=*,!PersonsControllerIntegrationTest,!DevicesControllerIntegrationTest,!BatchControllerIntegrationTest,!DetectiveManagerApplicationTests,!VisitPresencePersistenceIntegrationTest' spotless:check clean verify

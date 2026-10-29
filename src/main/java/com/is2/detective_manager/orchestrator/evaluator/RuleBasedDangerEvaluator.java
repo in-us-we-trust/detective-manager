@@ -1,6 +1,7 @@
 package com.is2.detective_manager.orchestrator.evaluator;
 
 import com.is2.detective_manager.orchestrator.Verdict;
+import com.is2.detective_manager.validation.audit.ValidationAuditRecorder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -9,11 +10,19 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
 public class RuleBasedDangerEvaluator implements DangerEvaluator {
+
+  private ValidationAuditRecorder validationAuditRecorder;
+
+  @Autowired(required = false)
+  public void setValidationAuditRecorder(ValidationAuditRecorder validationAuditRecorder) {
+    this.validationAuditRecorder = validationAuditRecorder;
+  }
 
   public static final String VISIT_PRESENCE_MESSAGE =
       "Atención: presencia prolongada inusual en la entrada. Revisá la situación.";
@@ -436,21 +445,29 @@ public class RuleBasedDangerEvaluator implements DangerEvaluator {
             .toList();
     if (matched.isEmpty()) {
       log.info("Ninguna regla matcheó para señales={} -> default", present);
+      if (validationAuditRecorder != null) {
+        validationAuditRecorder.ruleSelected(present, null, DEFAULT_ASSESSMENT);
+      }
       return DEFAULT_ASSESSMENT;
     }
 
     Rule winner = matched.get(0);
     String message = composeMessage(winner, matched);
     log.info("Regla matcheó: requires={} -> '{}'", winner.getRequires(), message);
-    return Assessment.builder()
-        .status(
-            winner.getVerdict() == Verdict.CONTINUE
-                ? AssessmentStatus.EVALUATING
-                : AssessmentStatus.CONCLUDED)
-        .severity(winner.getSeverity())
-        .message(message)
-        .verdict(winner.getVerdict())
-        .build();
+    Assessment assessment =
+        Assessment.builder()
+            .status(
+                winner.getVerdict() == Verdict.CONTINUE
+                    ? AssessmentStatus.EVALUATING
+                    : AssessmentStatus.CONCLUDED)
+            .severity(winner.getSeverity())
+            .message(message)
+            .verdict(winner.getVerdict())
+            .build();
+    if (validationAuditRecorder != null) {
+      validationAuditRecorder.ruleSelected(present, winner, assessment);
+    }
+    return assessment;
   }
 
   private static boolean isKnownPersonAttentionRule(Rule rule) {

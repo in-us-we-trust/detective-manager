@@ -16,6 +16,7 @@ import com.is2.detective_manager.repository.AssessmentRecordRepository;
 import com.is2.detective_manager.repository.TrackRepository;
 import com.is2.detective_manager.service.TrackConsolidation;
 import com.is2.detective_manager.service.TrackPersistenceService;
+import com.is2.detective_manager.validation.audit.ValidationAuditRecorder;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,6 +27,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +40,13 @@ public class TrackPersistenceServiceImpl implements TrackPersistenceService {
   private final AssessmentRecordRepository assessmentRecordRepository;
   private final DangerEvaluator dangerEvaluator;
   private final VideoAnalysisProperties videoProperties;
+
+  private ValidationAuditRecorder validationAuditRecorder;
+
+  @Autowired(required = false)
+  public void setValidationAuditRecorder(ValidationAuditRecorder validationAuditRecorder) {
+    this.validationAuditRecorder = validationAuditRecorder;
+  }
 
   @Override
   @Transactional
@@ -200,6 +209,9 @@ public class TrackPersistenceServiceImpl implements TrackPersistenceService {
         assessment.getSeverity(),
         shouldNotify);
 
+    if (validationAuditRecorder != null) {
+      validationAuditRecorder.consolidationSnapshot(trackId, allSignals, assessment, shouldNotify);
+    }
     return new TrackConsolidation(assessment, shouldNotify);
   }
 

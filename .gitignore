@@ -37,6 +37,11 @@ logs/
 validation-data/
 __pycache__/
 
+# Configuración privada e imágenes de referencia de la inicialización
+validation/*.local.json
+validation/*.local.json.lock
+validation/reference-images/
+
 # Environment / secrets
 *.env
 .env

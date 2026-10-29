@@ -37,4 +37,6 @@ El script genera una visita nueva por envío y guarda la evidencia en `validatio
 
 Un HTTP `201` también puede incluir un fallo de análisis: revisá el mensaje, el veredicto y los logs. La base se vacía al reiniciar; las imágenes y evidencias locales permanecen.
 
+Para preparar nuevamente los dos dispositivos y sus personas conocidas antes de cada lote o después de un reinicio, usá el [inicializador reproducible](docs/INICIALIZACION_VALIDACION.md). Sus UUID, nombres e imágenes se configuran en un archivo local ignorado por Git. No se realiza el alta hasta disponer de todas las imágenes y superar las verificaciones previas con ML real.
+
 El inventario de cambios, los contratos, las pruebas y los límites para el informe están en [docs/VALIDACION.md](docs/VALIDACION.md).

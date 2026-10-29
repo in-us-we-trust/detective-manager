@@ -87,6 +87,8 @@ class ValidationProfileIntegrationTest {
     properties.add(
         "validation.notifications.file",
         () -> temporaryDirectory.resolve("notifications.jsonl").toString());
+    properties.add(
+        "validation.audit.directory", () -> temporaryDirectory.resolve("audit").toString());
   }
 
   @Autowired private MockMvc mvc;
