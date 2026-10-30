@@ -39,4 +39,6 @@ Un HTTP `201` también puede incluir un fallo de análisis: revisá el mensaje, 
 
 Para preparar nuevamente los dos dispositivos y sus personas conocidas antes de cada lote o después de un reinicio, usá el [inicializador reproducible](docs/INICIALIZACION_VALIDACION.md). Sus UUID, nombres e imágenes se configuran en un archivo local ignorado por Git. No se realiza el alta hasta disponer de todas las imágenes y superar las verificaciones previas con ML real.
 
+Para configurar y ejecutar los 40 casos aprobados por caso, categoría o lote completo, consultá [Ejecución de la validación cuantitativa](docs/RUN_VALIDACION.md). Incluye comprobaciones sin altas y resultados independientes con copias verificadas de las auditorías.
+
 El inventario de cambios, los contratos, las pruebas y los límites para el informe están en [docs/VALIDACION.md](docs/VALIDACION.md).

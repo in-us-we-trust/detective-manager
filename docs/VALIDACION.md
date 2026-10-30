@@ -240,6 +240,8 @@ Para la suite histórica completa con PostgreSQL y la cobertura existente, usar 
 
 ## Casos para completar en el informe
 
+El catálogo y el ejecutor de los 40 casos aprobados se describen en [Ejecución de la validación cuantitativa](RUN_VALIDACION.md). `scripts/run-validation.py` permite comprobar la preparación sin enviar evidencias y ejecutar un caso, una categoría o todos, conservando cada lote y sus auditorías de manera independiente.
+
 Registrar para cada caso el identificador, archivo/hash, resultado esperado, resultado observado, evidencias y conclusión. Definir manualmente la verdad de referencia del material antes de ejecutarlo y registrar la versión/configuración del ML. No hay resultados de calidad del modelo hasta ejecutar material real contra ml-service.
 
 | Escenario | Comportamiento a contrastar |
