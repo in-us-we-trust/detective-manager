@@ -136,15 +136,6 @@ public class RuleBasedDangerEvaluator implements DangerEvaluator {
               Signal.NO_THREAT_OBJECT),
 
           // ===================== LLAMATIVO: combinaciones leves =====================
-          // La velocidad de acercamiento y la cantidad de personas requieren atención;
-          // los indicios adicionales conservan sus reglas sospechosas o peligrosas.
-          rule(
-              800,
-              Severity.LLAMATIVO,
-              Verdict.CONTINUE,
-              "Hay alguien desconocido y un acercamiento rápido en la entrada. Revisá antes de abrir.",
-              Signal.FAST_APPROACH,
-              Signal.UNKNOWN_PERSON),
           rule(
               670,
               Severity.LLAMATIVO,
@@ -200,13 +191,6 @@ public class RuleBasedDangerEvaluator implements DangerEvaluator {
               "Persona desconocida con movimientos erráticos",
               Signal.REPEATED_DIRECTION_CHANGES,
               Signal.UNKNOWN_PERSON),
-          rule(
-              160,
-              Severity.LLAMATIVO,
-              Verdict.CONTINUE,
-              "Persona desconocida acercándose",
-              Signal.APPROACHING_CAMERA,
-              Signal.UNKNOWN_PERSON),
 
           // ===================== LLAMATIVO: video (sueltas) =====================
           rule(
@@ -215,12 +199,6 @@ public class RuleBasedDangerEvaluator implements DangerEvaluator {
               Verdict.CONTINUE,
               "Persona presente durante un período prolongado",
               Signal.PROLONGED_PRESENCE),
-          rule(
-              140,
-              Severity.LLAMATIVO,
-              Verdict.CONTINUE,
-              "Alguien se acerca rápidamente a la puerta",
-              Signal.FAST_APPROACH),
           rule(
               130,
               Severity.LLAMATIVO,
@@ -273,6 +251,12 @@ public class RuleBasedDangerEvaluator implements DangerEvaluator {
 
           // ===================== NORMAL: informativas =====================
           rule(100, Severity.NORMAL, Verdict.CONTINUE, "Persona reconocida", Signal.KNOWN_PERSON),
+          rule(
+              95,
+              Severity.NORMAL,
+              Verdict.CONTINUE,
+              "Se detectó un acercamiento rápido a la cámara",
+              Signal.FAST_APPROACH),
           rule(
               90,
               Severity.NORMAL,
@@ -462,7 +446,7 @@ public class RuleBasedDangerEvaluator implements DangerEvaluator {
   /**
    * Título = mensaje de la regla ganadora. Después se recorren las demás reglas que matchearon (ya
    * vienen en orden de prioridad) y se suma el mensaje de cada una que aporte al menos una señal
-   * todavía no cubierta. PERSON y NO_THREAT_OBJECT solas no justifican un extra (son relleno).
+   * todavía no cubierta. Las señales informativas de LOW_INFO no justifican un extra por sí solas.
    */
   static String composeMessage(Rule winner, List<Rule> matched) {
     Set<Signal> covered = EnumSet.copyOf(winner.getRequires());
@@ -502,7 +486,9 @@ public class RuleBasedDangerEvaluator implements DangerEvaluator {
   }
 
   /** Señales que solo acompañan: no generan un mensaje extra por sí mismas. */
-  private static final Set<Signal> LOW_INFO = EnumSet.of(Signal.PERSON, Signal.NO_THREAT_OBJECT);
+  private static final Set<Signal> LOW_INFO =
+      EnumSet.of(
+          Signal.PERSON, Signal.NO_THREAT_OBJECT, Signal.APPROACHING_CAMERA, Signal.FAST_APPROACH);
 
   // Solo se relaja esta combinación cuando no hay una identidad desconocida en el track.
   private static final Set<Signal> URGENCY_AND_PRESSURE =
@@ -521,7 +507,7 @@ public class RuleBasedDangerEvaluator implements DangerEvaluator {
 
   /**
    * Señales de video que invalidan NO_SUSPICIOUS_BEHAVIOR. MULTIPLE_PEOPLE queda afuera porque
-   * también la emite el step de imagen.
+   * también la emite el step de imagen. Los acercamientos son exclusivamente informativos.
    */
   private static final Set<Signal> VIDEO_FINDINGS =
       EnumSet.of(
@@ -530,7 +516,5 @@ public class RuleBasedDangerEvaluator implements DangerEvaluator {
           Signal.LONG_STOP,
           Signal.REPEATED_DIRECTION_CHANGES,
           Signal.RETURNED_TO_PREVIOUS_POSITION,
-          Signal.APPROACHING_CAMERA,
-          Signal.FAST_APPROACH,
           Signal.LOITERING);
 }

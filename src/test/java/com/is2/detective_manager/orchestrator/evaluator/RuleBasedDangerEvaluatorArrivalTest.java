@@ -103,7 +103,6 @@ class RuleBasedDangerEvaluatorArrivalTest {
             Signal.TOOL_DETECTED,
             Signal.NO_SUSPICIOUS_CONVERSATION),
         List.of(Signal.UNKNOWN_PERSON, Signal.MULTIPLE_PEOPLE, Signal.FAST_APPROACH),
-        List.of(Signal.KNOWN_PERSON, Signal.FAST_APPROACH),
         List.of(Signal.KNOWN_PERSON, Signal.MULTIPLE_PEOPLE));
   }
 

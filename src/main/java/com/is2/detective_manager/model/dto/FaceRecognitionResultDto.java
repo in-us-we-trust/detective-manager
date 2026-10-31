@@ -2,6 +2,7 @@ package com.is2.detective_manager.model.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -29,4 +30,6 @@ public class FaceRecognitionResultDto {
 
   @JsonProperty("detector_backend")
   private String detectorBackend;
+
+  private List<FaceRecognitionFaceDto> faces;
 }

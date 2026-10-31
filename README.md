@@ -2,6 +2,8 @@
 
 Microservicio encargado de gestionar la detección de intrusos y eventos atípicos en el ecosistema Hogar seguro. Recibe eventos desde microcontroladores IoT, los analiza mediante un servicio de machine learning externo, persiste el resultado y notifica a los usuarios afectados en caso de detectar un intruso.
 
+Las mejoras de acercamientos de video y reconocimiento facial múltiple, junto con sus criterios y guía para trasladarlas a otras ramas, están documentadas en [Mejoras de video y reconocimiento facial](docs/MEJORAS_VIDEO_RECONOCIMIENTO_FACIAL.md).
+
 ## Flujo principal
 
 1. El microcontrolador envía un evento con imagen en base64 y tipo de evento.

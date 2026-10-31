@@ -30,6 +30,7 @@ import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -166,14 +167,22 @@ public class OrchestratorServiceImpl implements OrchestratorService {
     TrackConsolidation consolidation = consolidateWithRetry(trackId, chunkSignals);
 
     String personName = recognizedPersonName(outcomes);
+    Map<String, Object> faceInformation = groupFaceInformation(outcomes);
     if (mediaType == ChunkType.IMAGE && chunkSignals.contains(Signal.UNKNOWN_PERSON)) {
-      saveUnknownPersonSuggestion(deviceId, payload, mediaUrl);
+      if (faceInformation.isEmpty()) {
+        saveUnknownPersonSuggestion(deviceId, payload, mediaUrl);
+      } else {
+        log.info(
+            "Imagen con varios rostros en device {}: no se genera un embedding de sugerencia de la imagen grupal",
+            deviceId);
+      }
     }
 
     Assessment finalAssessment = consolidation.finalAssessment();
     String message =
-        messageWithRecognizedPerson(
-            analysisMessage(finalAssessment, outcomes, track, chunkSignals), personName);
+        messageWithRecognizedPeople(
+            analysisMessage(finalAssessment, outcomes, track, chunkSignals),
+            recognizedPersonNames(personName, faceInformation));
 
     // === FASE 3: NOTIFICACIÓN (efecto externo, DESPUÉS del commit) ===
     if (consolidation.shouldNotify()) {
@@ -185,7 +194,7 @@ public class OrchestratorServiceImpl implements OrchestratorService {
         mediaType,
         consolidation,
         message,
-        additionalInformation(mediaType, personName));
+        additionalInformation(mediaType, personName, faceInformation));
   }
 
   /** Conserva los errores como información del análisis, sin convertirlos en señales. */
@@ -333,11 +342,55 @@ public class OrchestratorServiceImpl implements OrchestratorService {
     return null;
   }
 
-  private String messageWithRecognizedPerson(String message, String personName) {
-    if (personName == null || personName.isBlank()) {
+  private Map<String, Object> groupFaceInformation(List<StepOutcome> outcomes) {
+    for (StepOutcome outcome : outcomes) {
+      if (outcome.quality() != AnalysisQuality.VALID || outcome.data() == null) {
+        continue;
+      }
+      Map<String, Object> data = outcome.data();
+      if (data.get(FaceRecognitionStep.FACE_COUNT_DATA_KEY) instanceof Number count
+          && count.intValue() > 1) {
+        Map<String, Object> information = new LinkedHashMap<>();
+        for (String key :
+            List.of(
+                FaceRecognitionStep.FACE_COUNT_DATA_KEY,
+                FaceRecognitionStep.KNOWN_FACE_COUNT_DATA_KEY,
+                FaceRecognitionStep.UNKNOWN_FACE_COUNT_DATA_KEY,
+                FaceRecognitionStep.PERSON_NAMES_DATA_KEY,
+                FaceRecognitionStep.FACES_DATA_KEY)) {
+          if (data.containsKey(key)) {
+            information.put(key, data.get(key));
+          }
+        }
+        return information;
+      }
+    }
+    return Map.of();
+  }
+
+  private List<String> recognizedPersonNames(
+      String personName, Map<String, Object> faceInformation) {
+    List<String> names = new ArrayList<>();
+    if (personName != null && !personName.isBlank()) {
+      names.add(personName);
+    }
+    if (faceInformation.get(FaceRecognitionStep.PERSON_NAMES_DATA_KEY) instanceof List<?> values) {
+      for (Object value : values) {
+        if (value instanceof String name && !name.isBlank()) {
+          names.add(name.strip());
+        }
+      }
+    }
+    return names.stream().distinct().toList();
+  }
+
+  private String messageWithRecognizedPeople(String message, List<String> personNames) {
+    if (personNames.isEmpty()) {
       return message;
     }
-    String recognized = "Persona reconocida: " + personName;
+    String recognized =
+        (personNames.size() > 1 ? "Personas reconocidas: " : "Persona reconocida: ")
+            + String.join(", ", personNames);
     if (message == null || message.isBlank() || "Persona reconocida".equals(message)) {
       return recognized;
     }
@@ -347,11 +400,16 @@ public class OrchestratorServiceImpl implements OrchestratorService {
     return message + (message.endsWith(".") ? " " : ". ") + recognized;
   }
 
-  private Map<String, Object> additionalInformation(ChunkType mediaType, String personName) {
-    if (mediaType != ChunkType.IMAGE || personName == null || personName.isBlank()) {
+  private Map<String, Object> additionalInformation(
+      ChunkType mediaType, String personName, Map<String, Object> faceInformation) {
+    if (mediaType != ChunkType.IMAGE) {
       return null;
     }
-    return Map.of(FaceRecognitionStep.PERSON_NAME_DATA_KEY, personName);
+    Map<String, Object> information = new LinkedHashMap<>(faceInformation);
+    if (personName != null && !personName.isBlank()) {
+      information.put(FaceRecognitionStep.PERSON_NAME_DATA_KEY, personName);
+    }
+    return information.isEmpty() ? null : information;
   }
 
   private void maybeNotifyDanger(UUID trackId, UUID deviceId, String message) {

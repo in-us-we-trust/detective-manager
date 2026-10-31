@@ -45,16 +45,14 @@ class RuleBasedDangerEvaluatorVideoTest {
   }
 
   @Test
-  void fastApproachWithUnknownPerson_withoutOtherFindingsIsOnlyAttentionWorthy() {
+  void fastApproachWithUnknownPerson_keepsOnlyTheUnknownPersonAssessment() {
     Assessment assessment =
         evaluator.evaluate(
             List.of(Signal.UNKNOWN_PERSON, Signal.APPROACHING_CAMERA, Signal.FAST_APPROACH));
 
     assertEquals(Severity.LLAMATIVO, assessment.getSeverity());
     assertEquals(Verdict.CONTINUE, assessment.getVerdict());
-    assertEquals(
-        "Hay alguien desconocido y un acercamiento rápido en la entrada. Revisá antes de abrir. · Persona desconocida acercándose",
-        assessment.getMessage());
+    assertEquals(evaluator.evaluate(List.of(Signal.UNKNOWN_PERSON)), assessment);
   }
 
   @Test
@@ -106,7 +104,7 @@ class RuleBasedDangerEvaluatorVideoTest {
     assertAssessment(
         List.of(Signal.APPROACHING_CAMERA, Signal.UNKNOWN_PERSON),
         Severity.LLAMATIVO,
-        "Persona desconocida acercándose");
+        "No se reconoce a la persona");
     assertAssessment(
         List.of(Signal.PROLONGED_PRESENCE),
         Severity.LLAMATIVO,

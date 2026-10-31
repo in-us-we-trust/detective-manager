@@ -55,6 +55,72 @@ class FaceRecognitionStepTest {
   }
 
   @Test
+  void execute_mixedGroupEmitsBothIdentitiesAndMultiplePeopleWithDerivedDetails() {
+    when(faceRecognizer.recognize(IMAGE, DEVICE_ID))
+        .thenReturn(
+            FaceRecognitionOutcome.fromFaces(
+                List.of(face(0, true, "Mateo"), face(1, false, "Mateo"))));
+
+    StepResult result = step.execute(context());
+
+    assertEquals(
+        Set.of(Signal.KNOWN_PERSON, Signal.UNKNOWN_PERSON, Signal.MULTIPLE_PEOPLE),
+        Set.copyOf(result.getSignals()));
+    assertEquals(2, result.getData().get(FaceRecognitionStep.FACE_COUNT_DATA_KEY));
+    assertEquals(1L, result.getData().get(FaceRecognitionStep.KNOWN_FACE_COUNT_DATA_KEY));
+    assertEquals(1L, result.getData().get(FaceRecognitionStep.UNKNOWN_FACE_COUNT_DATA_KEY));
+    assertEquals(List.of("Mateo"), result.getData().get(FaceRecognitionStep.PERSON_NAMES_DATA_KEY));
+    assertEquals("SKIPPED_MULTIPLE_FACES", result.getData().get("unknownPersonSuggestion"));
+    assertEquals("Rostros reconocidos: 1; rostros no reconocidos: 1", result.getMessage());
+  }
+
+  @Test
+  void execute_allKnownGroupDoesNotEmitUnknownPerson() {
+    when(faceRecognizer.recognize(IMAGE, DEVICE_ID))
+        .thenReturn(
+            FaceRecognitionOutcome.fromFaces(
+                List.of(face(0, true, "Mateo"), face(1, true, "Juli"))));
+
+    StepResult result = step.execute(context());
+
+    assertEquals(
+        Set.of(Signal.KNOWN_PERSON, Signal.MULTIPLE_PEOPLE), Set.copyOf(result.getSignals()));
+    assertEquals(
+        List.of("Mateo", "Juli"), result.getData().get(FaceRecognitionStep.PERSON_NAMES_DATA_KEY));
+  }
+
+  @Test
+  void execute_allUnknownGroupNeverUsesNearestCandidateNames() {
+    when(faceRecognizer.recognize(IMAGE, DEVICE_ID))
+        .thenReturn(
+            FaceRecognitionOutcome.fromFaces(
+                List.of(face(0, false, "Mateo"), face(1, false, "Mateo"))));
+
+    StepResult result = step.execute(context());
+
+    assertEquals(
+        Set.of(Signal.UNKNOWN_PERSON, Signal.MULTIPLE_PEOPLE), Set.copyOf(result.getSignals()));
+    assertFalse(result.getData().containsKey(FaceRecognitionStep.PERSON_NAME_DATA_KEY));
+    assertEquals(List.of(), result.getData().get(FaceRecognitionStep.PERSON_NAMES_DATA_KEY));
+  }
+
+  @Test
+  void execute_singleNewContractFaceKeepsSinglePersonSignals() {
+    when(faceRecognizer.recognize(IMAGE, DEVICE_ID))
+        .thenReturn(FaceRecognitionOutcome.fromFaces(List.of(face(0, true, "Mateo"))));
+
+    StepResult result = step.execute(context());
+
+    assertEquals(List.of(Signal.KNOWN_PERSON), result.getSignals());
+    assertEquals("Mateo", result.getData().get(FaceRecognitionStep.PERSON_NAME_DATA_KEY));
+    assertEquals(null, result.getMessage());
+  }
+
+  private FaceRecognitionOutcome.Face face(int index, boolean known, String name) {
+    return new FaceRecognitionOutcome.Face(index, null, known, 0.18, 1L, UUID.randomUUID(), name);
+  }
+
+  @Test
   void supportsOnlyImage() {
     assertTrue(step.supports(Set.of(ChunkType.IMAGE)));
     assertFalse(step.supports(Set.of(ChunkType.VIDEO)));
