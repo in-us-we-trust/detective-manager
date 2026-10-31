@@ -171,7 +171,7 @@ class TrackMessageBuilderTest {
         Arguments.of(
             "UNKNOWN_PERSON,FAST_APPROACH,PACKAGE_DETECTED,NO_SUSPICIOUS_CONVERSATION",
             TrackAppCode.UNKNOWN_PERSON,
-            "Hay alguien desconocido y un acercamiento rápido en la entrada.",
+            "No se reconoce a la persona",
             "Se detectó un paquete durante la visita"),
         Arguments.of(
             "UNKNOWN_PERSON,MULTIPLE_PEOPLE,TOOL_DETECTED,NO_SUSPICIOUS_CONVERSATION",
@@ -181,7 +181,7 @@ class TrackMessageBuilderTest {
         Arguments.of(
             "KNOWN_PERSON,UNKNOWN_PERSON,NO_THREAT_OBJECT,FAST_APPROACH",
             TrackAppCode.KNOWN_PERSON,
-            "Hay alguien desconocido y un acercamiento rápido en la entrada.",
+            MixedRecognitionEvidence.MESSAGE,
             MixedRecognitionEvidence.MESSAGE),
         Arguments.of(
             "KNOWN_PERSON,UNKNOWN_PERSON,NO_THREAT_OBJECT,MULTIPLE_PEOPLE",

@@ -40,11 +40,6 @@ public final class VisitEvidenceRules {
               Signal.COVERED_FACE,
               Signal.LOITERING),
           rule(
-              940,
-              "Rostro cubierto: no permite ver bien quién es. Revisá antes de abrir.",
-              Signal.COVERED_FACE,
-              Signal.FAST_APPROACH),
-          rule(
               900,
               "Varias personas en la entrada y presión para que actúes. Revisá antes de decidir.",
               Signal.MULTIPLE_PEOPLE,

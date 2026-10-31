@@ -29,7 +29,7 @@ public class EventChunkResponseDto {
 
   @Schema(
       description =
-          "Información adicional flexible del chunk. En IMAGE puede incluir personName cuando la persona es conocida.",
+          "Información adicional flexible del chunk. En IMAGE puede incluir personName. Para varios rostros incluye faces (box en píxeles), faceCount, knownFaceCount, unknownFaceCount y personNames. Las identidades se informan únicamente cuando known=true; faceIndex sólo identifica el rostro dentro de esa respuesta.",
       example = "{\"personName\":\"Juan Pérez\"}")
   private Map<String, Object> additionalInformation;
 }

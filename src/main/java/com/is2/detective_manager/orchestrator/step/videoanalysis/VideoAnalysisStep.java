@@ -92,8 +92,10 @@ public class VideoAnalysisStep implements AnalysisStep {
       signals.add(Signal.MULTIPLE_PEOPLE);
     }
 
-    // Las observaciones utilizables no alcanzaron los umbrales de comportamiento.
-    if (signals.isEmpty() && !incompleteObservations) {
+    // El acercamiento aporta contexto, sin constituir un comportamiento sospechoso.
+    if (!incompleteObservations
+        && signals.stream()
+            .allMatch(s -> s == Signal.APPROACHING_CAMERA || s == Signal.FAST_APPROACH)) {
       signals.add(Signal.NO_SUSPICIOUS_BEHAVIOR);
     }
 

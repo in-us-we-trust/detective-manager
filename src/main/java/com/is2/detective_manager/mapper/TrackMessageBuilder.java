@@ -44,6 +44,7 @@ public class TrackMessageBuilder {
     if (KnownPersonAttention.appliesTo(signals)
         || MixedRecognitionEvidence.appliesTo(signals)
         || signals.contains(Signal.PROLONGED_VISIT_PRESENCE)
+        || signals.contains(Signal.COVERED_FACE)
         || VisitEvidenceRules.matchesAny(signals)
         || !Collections.disjoint(signals, OBJECT_CONTEXT_SIGNALS)) {
       TrackAppCode code =

@@ -38,8 +38,8 @@ public enum Signal {
   LONG_STOP, // período continuo extenso con poca movilidad
   REPEATED_DIRECTION_CHANGES, // cambios significativos y sostenidos de dirección
   RETURNED_TO_PREVIOUS_POSITION, // se alejó y volvió a una región recorrida
-  APPROACHING_CAMERA, // tendencia sostenida de acercamiento
-  FAST_APPROACH, // acercamiento sostenido a velocidad alta
+  APPROACHING_CAMERA, // tendencia sostenida de acercamiento; exclusivamente informativa
+  FAST_APPROACH, // acercamiento sostenido a velocidad alta; exclusivamente informativa
   LOITERING, // presencia prolongada + otro patrón de merodeo
   NO_SUSPICIOUS_BEHAVIOR // se analizó el video y no se detectó nada extraño
 }

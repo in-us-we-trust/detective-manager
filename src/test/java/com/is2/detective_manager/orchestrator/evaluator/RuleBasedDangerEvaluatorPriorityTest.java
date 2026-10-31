@@ -20,7 +20,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 class RuleBasedDangerEvaluatorPriorityTest {
 
-  private static final String COVERED_FAST =
+  private static final String COVERED_FACE =
       "Rostro cubierto: no permite ver bien quién es. Revisá antes de abrir.";
   private static final String COVERED_LOITERING =
       "Rostro cubierto y actividad inusual en la entrada. Verificá quién está afuera.";
@@ -56,7 +56,11 @@ class RuleBasedDangerEvaluatorPriorityTest {
 
     assertEquals(
         String.join(
-            " · ", COVERED_FAST, COVERED_LOITERING, LOITERING_VERIFICATION, GROUP_LOITERING),
+            " · ",
+            COVERED_LOITERING,
+            LOITERING_VERIFICATION,
+            GROUP_LOITERING,
+            "Varias personas en la entrada y presión para que actúes. Revisá antes de decidir."),
         assessment.getMessage());
     assertEquals(4, assessment.getMessage().split(" · ").length);
     assertEquals(Severity.SOSPECHOSO, assessment.getSeverity());
@@ -81,8 +85,8 @@ class RuleBasedDangerEvaluatorPriorityTest {
             " · ",
             "La persona está armada",
             "Amenaza verbal detectada",
-            COVERED_FAST,
-            COVERED_LOITERING),
+            COVERED_LOITERING,
+            LOITERING_VERIFICATION),
         assessment.getMessage());
   }
 
@@ -158,14 +162,14 @@ class RuleBasedDangerEvaluatorPriorityTest {
         Arguments.of(
             List.of(
                 Signal.AUTHORITY, Signal.MONEY_REQUEST, Signal.COVERED_FACE, Signal.FAST_APPROACH),
-            COVERED_FAST + " · " + AUTHORITY_MONEY),
+            AUTHORITY_MONEY + " · " + COVERED_FACE),
         Arguments.of(
             List.of(Signal.AUTHORITY, Signal.PRESSURE, Signal.COVERED_FACE, Signal.LOITERING),
             COVERED_LOITERING
                 + " · Hay presión para que actúes. Confirmá quién hace el pedido antes de decidir."),
         Arguments.of(
             List.of(Signal.COVERED_FACE, Signal.LOITERING, Signal.FAST_APPROACH),
-            COVERED_FAST + " · " + COVERED_LOITERING),
+            COVERED_LOITERING),
         Arguments.of(
             List.of(
                 Signal.AUTHORITY,
@@ -194,8 +198,7 @@ class RuleBasedDangerEvaluatorPriorityTest {
                 + " · Habla con urgencia"),
         Arguments.of(
             List.of(Signal.LOITERING, Signal.UNKNOWN_PERSON, Signal.FAST_APPROACH),
-            "Persona desconocida con posible comportamiento de merodeo"
-                + " · Hay alguien desconocido y un acercamiento rápido en la entrada. Revisá antes de abrir."),
+            "Persona desconocida con posible comportamiento de merodeo"),
         Arguments.of(
             List.of(Signal.AUTHORITY, Signal.CODE_REQUEST, Signal.VERIFICATION_AVOIDANCE),
             "Dice ser autoridad y pide un código de acceso"

@@ -143,6 +143,7 @@ class ObjectContextSignalsTest {
             Signal.FAST_APPROACH,
             Signal.LOITERING,
             Signal.VERIFICATION_AVOIDANCE,
+            Signal.PRESSURE,
             Signal.MULTIPLE_PEOPLE);
     Assessment baseline = evaluator.evaluate(findings);
     List<Signal> withContext = new ArrayList<>(findings);

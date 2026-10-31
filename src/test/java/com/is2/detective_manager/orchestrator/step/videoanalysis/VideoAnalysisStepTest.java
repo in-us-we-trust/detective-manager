@@ -20,6 +20,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class VideoAnalysisStepTest {
 
@@ -51,6 +53,7 @@ class VideoAnalysisStepTest {
     assertFalse(result.getSignals().contains(Signal.LOITERING));
     assertTrue(result.getSignals().contains(Signal.APPROACHING_CAMERA));
     assertTrue(result.getSignals().contains(Signal.FAST_APPROACH));
+    assertFalse(result.getSignals().contains(Signal.NO_SUSPICIOUS_BEHAVIOR));
     assertTrue(
         result.getData().get(VideoAnalysisStep.FEATURES_DATA_KEY) instanceof VideoBehaviorFeatures);
   }
@@ -161,7 +164,7 @@ class VideoAnalysisStepTest {
   }
 
   @Test
-  void execute_emitsNoSuspiciousBehaviorOnlyWhenNothingElseWasDetected() {
+  void execute_emitsNoSuspiciousBehaviorOnlyWithoutSuspiciousFindings() {
     StepResult ordinaryPresence = execute(List.of(observation(0, 0, 1, 50, 50, 12, 0.1, 0.95)), 5);
     assertEquals(List.of(Signal.NO_SUSPICIOUS_BEHAVIOR), ordinaryPresence.getSignals());
     assertEquals(AnalysisQuality.VALID, ordinaryPresence.getQuality());
@@ -172,6 +175,37 @@ class VideoAnalysisStepTest {
     }
 
     assertFalse(execute(still, 25).getSignals().contains(Signal.NO_SUSPICIOUS_BEHAVIOR));
+  }
+
+  @ParameterizedTest
+  @ValueSource(doubles = {0.08, 0.16})
+  void execute_preservesInformationalApproachesAndReportsNoSuspiciousBehavior(double areaRate) {
+    StepResult result = execute(approachObservations(areaRate), 6);
+
+    assertEquals(AnalysisQuality.VALID, result.getQuality());
+    assertEquals(
+        areaRate > 0.12
+            ? Set.of(Signal.APPROACHING_CAMERA, Signal.FAST_APPROACH, Signal.NO_SUSPICIOUS_BEHAVIOR)
+            : Set.of(Signal.APPROACHING_CAMERA, Signal.NO_SUSPICIOUS_BEHAVIOR),
+        Set.copyOf(result.getSignals()));
+    VideoBehaviorFeatures features =
+        (VideoBehaviorFeatures) result.getData().get(VideoAnalysisStep.FEATURES_DATA_KEY);
+    assertTrue(features.persons().get(0).approachingCamera());
+    assertEquals(areaRate > 0.12, features.persons().get(0).fastApproach());
+  }
+
+  @Test
+  void execute_preservesInformationalApproachesWithoutReassuranceWhenAnalysisIsIncomplete() {
+    List<VideoObservation> observations = approachObservations(0.16);
+    StepResult result =
+        execute(
+            new VideoAnalysisResult(
+                new VideoMetadata(1920, 1080, 2, 6, 12), observations, observations.size() + 1));
+
+    assertEquals(AnalysisQuality.INSUFFICIENT, result.getQuality());
+    assertEquals(
+        Set.of(Signal.APPROACHING_CAMERA, Signal.FAST_APPROACH), Set.copyOf(result.getSignals()));
+    assertFalse(result.getMessage().isBlank());
   }
 
   @Test
@@ -248,6 +282,24 @@ class VideoAnalysisStepTest {
             new VideoMetadata(1920, 1080, 2, durationSeconds, (int) (durationSeconds * 2)),
             observations);
     return execute(analysis);
+  }
+
+  private List<VideoObservation> approachObservations(double areaRate) {
+    List<VideoObservation> observations = new ArrayList<>();
+    for (int sample = 0; sample <= 12; sample++) {
+      double timestamp = sample * 0.5;
+      observations.add(
+          observation(
+              sample,
+              timestamp,
+              1,
+              50,
+              45 + timestamp,
+              5 * Math.exp(areaRate * timestamp),
+              4.0,
+              0.95));
+    }
+    return observations;
   }
 
   private StepResult execute(VideoAnalysisResult analysis) {

@@ -29,8 +29,7 @@ public class RabbitMqConfig {
 
   /** Cola que consume el notification service. */
   @Bean
-  public Queue doorbellNotificationsQueue(
-      @Value("${rabbitmq.notifications.queue}") String queue) {
+  public Queue doorbellNotificationsQueue(@Value("${rabbitmq.notifications.queue}") String queue) {
     return new Queue(queue, true);
   }
 

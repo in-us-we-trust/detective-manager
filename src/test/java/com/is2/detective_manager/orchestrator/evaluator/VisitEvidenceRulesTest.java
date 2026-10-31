@@ -125,7 +125,11 @@ class VisitEvidenceRulesTest {
 
       assertEquals(Severity.SOSPECHOSO, assessment.getSeverity());
       assertTrue(assessment.getMessage().startsWith("Rostro cubierto"));
-      assertTrue(assessment.getMessage().contains("No se reconoce a la persona"));
+      List<Signal> withoutApproaches =
+          findings.stream()
+              .filter(s -> s != Signal.APPROACHING_CAMERA && s != Signal.FAST_APPROACH)
+              .toList();
+      assertEquals(evaluator.evaluate(withoutApproaches), assessment);
       assertFalse(assessment.getMessage().contains("Persona desconocida acercándose"));
       assertFalse(
           assessment.getMessage().contains("Persona desconocida con posible comportamiento"));
