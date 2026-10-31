@@ -23,6 +23,12 @@ public class FaceRecognitionStep implements AnalysisStep {
   /** Clave en {@link StepResult#getData()} con el nombre cuando la persona es conocida. */
   public static final String PERSON_NAME_DATA_KEY = "personName";
 
+  public static final String PERSON_NAMES_DATA_KEY = "personNames";
+  public static final String FACES_DATA_KEY = "faces";
+  public static final String FACE_COUNT_DATA_KEY = "faceCount";
+  public static final String KNOWN_FACE_COUNT_DATA_KEY = "knownFaceCount";
+  public static final String UNKNOWN_FACE_COUNT_DATA_KEY = "unknownFaceCount";
+
   private final FaceRecognizer faceRecognizer;
 
   @Override
@@ -44,7 +50,32 @@ public class FaceRecognitionStep implements AnalysisStep {
     StepResult.StepResultBuilder result =
         StepResult.builder().nextStatus(TrackStatus.FACE_RECOGNIZED).data(data).shouldNotify(false);
 
-    result.signal(outcome.known() ? Signal.KNOWN_PERSON : Signal.UNKNOWN_PERSON);
+    if (outcome.known()) {
+      result.signal(Signal.KNOWN_PERSON);
+    }
+    if (outcome.hasUnknownFaces()) {
+      result.signal(Signal.UNKNOWN_PERSON);
+    }
+    if (!outcome.faces().isEmpty()) {
+      int faceCount = outcome.faces().size();
+      long knownCount = outcome.faces().stream().filter(FaceRecognitionOutcome.Face::known).count();
+      data.put(FACES_DATA_KEY, outcome.faces());
+      data.put(FACE_COUNT_DATA_KEY, faceCount);
+      data.put(KNOWN_FACE_COUNT_DATA_KEY, knownCount);
+      data.put(UNKNOWN_FACE_COUNT_DATA_KEY, faceCount - knownCount);
+      data.put(PERSON_NAMES_DATA_KEY, outcome.personNames());
+      if (faceCount > 1) {
+        result.signal(Signal.MULTIPLE_PEOPLE);
+        result.message(
+            "Rostros reconocidos: "
+                + knownCount
+                + "; rostros no reconocidos: "
+                + (faceCount - knownCount));
+        if (outcome.hasUnknownFaces()) {
+          data.put("unknownPersonSuggestion", "SKIPPED_MULTIPLE_FACES");
+        }
+      }
+    }
 
     return result.build();
   }

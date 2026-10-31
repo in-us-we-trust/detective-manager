@@ -93,7 +93,7 @@ Para audio o video, cambiar `mediaType` y el archivo. El límite configurado es 
 | AUDIO | `conversation`, multipart con `visitor_audio` |
 | VIDEO | `video`, multipart con `video` |
 
-Todos esos endpoints del ML cuelgan de `/api/ml-service/v1/analysis/`. Una imagen de persona desconocida también puede disparar `face-embedding` para guardar un vector huérfano. El alta de personas conocidas usa `face-embedding`; el batch utiliza clustering. No se eliminan esas llamadas al ML.
+Todos esos endpoints del ML cuelgan de `/api/ml-service/v1/analysis/`. Una imagen con un solo rostro desconocido también puede disparar `face-embedding` para guardar un vector huérfano. Las imágenes grupales no se envían a ese endpoint. El alta de personas conocidas usa `face-embedding`; el batch utiliza clustering.
 
 La respuesta mantiene `201 Created` y el contrato existente:
 
@@ -111,6 +111,24 @@ La respuesta mantiene `201 Created` y el contrato existente:
 ```
 
 Los valores dependen del contenido analizado y de las señales anteriores de la visita. `201` no demuestra que todos los análisis hayan terminado correctamente: el orquestador conserva errores parciales en el mensaje y puede continuar con otros resultados. Esta conducta se mantiene para poder observarla durante las pruebas.
+
+### Reconocimiento facial de varias personas
+
+Manager envía la imagen completa y los embeddings conocidos del dispositivo directamente a `face-recognition`, sin generar previamente un embedding de la evidencia. `data.known` significa que hay al menos un conocido; cuando ML devuelve `faces`, cada `faces[i].known` determina si ese rostro fue reconocido. Un `closest_match` con `known=false` es sólo un candidato y no identifica a la persona. `distance` y `closest_match` pueden ser nulos. Se conserva la compatibilidad con respuestas anteriores sin `faces` y con el flujo de una sola persona.
+
+| Rostros de la imagen | Señales faciales |
+| --- | --- |
+| Todos conocidos | `KNOWN_PERSON` y `MULTIPLE_PEOPLE` |
+| Conocidos y desconocidos | `KNOWN_PERSON`, `UNKNOWN_PERSON` y `MULTIPLE_PEOPLE` |
+| Todos desconocidos | `UNKNOWN_PERSON` y `MULTIPLE_PEOPLE` |
+
+`MULTIPLE_PEOPLE` sólo se agrega con más de un rostro. Se reutilizan las reglas existentes: un grupo mixto no obtiene `SAFE` por la presencia de un conocido; armas, amenazas y demás hallazgos mantienen sus prioridades. Cuando todos son conocidos se conserva la prioridad existente de `SAFE`, si también hay `NO_THREAT_OBJECT` y no la desplaza otra regla.
+
+Para imágenes grupales, `additionalInformation` agrega `faceCount`, `knownFaceCount`, `unknownFaceCount`, `personNames` (nombres reconocidos sin repetir) y `faces`. Cada rostro contiene `faceIndex`, `box`, `known`, `distance`, `embeddingId`, `personId` y `personName`. `box` conserva las coordenadas en píxeles de la imagen original. `faceIndex` es local a esa respuesta: no identifica a una persona ni conecta evidencias. Los identificadores y el nombre quedan nulos para rostros no reconocidos, aunque exista un candidato cercano. `personName` sigue disponible para la mejor coincidencia reconocida; el mensaje puede listar varios nombres. Para una sola persona, la respuesta conserva el formato previo.
+
+La auditoría conserva la respuesta original de ML en su JSON comprimido, incluidos los candidatos no reconocidos, y los resultados por rostro, conteos y señales derivados en el step. Por ahora no se crean embeddings huérfanos de fotos grupales: `face-embedding` exige un único rostro, y enviarle la imagen completa generaría un error. Se registra `unknownPersonSuggestion=SKIPPED_MULTIPLE_FACES` cuando corresponde. No se realizan recortes adicionales ni llamadas de inscripción por cada acompañante. Las sugerencias para un solo desconocido siguen funcionando.
+
+El `422` de ML con `At least one face is required` se conserva como análisis facial fallido; no se transforma en `UNKNOWN_PERSON`. Una lista de rostros vacía, incompleta o incoherente tampoco produce un reconocimiento positivo. Los otros steps pueden completar la solicitud HTTP, pero la auditoría la marca como no válida para la medición cuantitativa.
 
 ## Envíos reproducibles y evidencia
 
