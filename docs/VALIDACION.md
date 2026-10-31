@@ -258,6 +258,8 @@ Registrar para cada caso el identificador, archivo/hash, resultado esperado, res
 
 Los umbrales actuales se conservan: presencia prolongada de 20 s, detención de 10 s y presencia acumulada de visita de 20 s. Un clip de 5 s no confirma los dos primeros patrones por persona. La presencia entre clips cuenta intervalos observados con personas, sin asumir continuidad ni identidad entre videos. Presencia prolongada por sí sola no demuestra merodeo; se mantienen las reglas de trayectorias y su prioridad.
 
+`APPROACHING_CAMERA` y `FAST_APPROACH` son exclusivamente informativas: se conservan en las señales, los datos derivados y las auditorías, pero no elevan la severidad ni agregan advertencias, incluso junto a `UNKNOWN_PERSON`. La identidad desconocida conserva su clasificación propia (`LLAMATIVO`). Un análisis de video completo con solo acercamientos también emite `NO_SUSPICIOUS_BEHAVIOR`; un análisis incompleto no lo emite. Los acercamientos no invalidan esa señal al consolidar el track. Merodeo, detenciones prolongadas, armas, amenazas y demás hallazgos mantienen sus reglas; el rostro cubierto conserva su advertencia independientemente del acercamiento. Los registros históricos no se reescriben: repetir los casos con un track nuevo y reconstruir Detective Manager para aplicar este cambio.
+
 ## Alcance de las conclusiones
 
 El experimento permite validar el contrato multimedia, la integración con ML, las reglas de decisión, la acumulación por visita y la construcción de notificaciones. No valida la entrega por RabbitMQ, el almacenamiento Cloudinary, la aplicación móvil, el dispositivo físico ni el comportamiento específico, rendimiento o durabilidad de PostgreSQL. La latencia se mide con infraestructura local distinta de producción.

@@ -12,6 +12,7 @@ import hashlib
 import json
 import math
 from pathlib import Path
+import re
 import sys
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
@@ -282,7 +283,21 @@ def validate_embedding(record, device, person):
     if type(record.get("dimensions")) is not int or record["dimensions"] != len(record["embedding"]):
         raise InitializationError(f"{device.label}: dimensiones inconsistentes en el embedding.")
     try:
-        datetime.fromisoformat(required_text(record.get("createdAt"), "createdAt").replace("Z", "+00:00"))
+        timestamp = required_text(record.get("createdAt"), "createdAt")
+        match = re.fullmatch(
+            r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,9}))?(Z|[+-]\d{2}:\d{2})?",
+            timestamp,
+        )
+        if match is None:
+            raise ValueError("Se esperaba una fecha ISO con segundos y precisión de hasta nanosegundos.")
+        # Java emite entre 1 y 9 decimales; Python 3.9 sólo acepta 3 o 6.
+        # Normalizar únicamente para validar la fecha, sin modificar el registro ni su precisión.
+        fraction = match.group(2)
+        timestamp = match.group(1)
+        if fraction:
+            timestamp += "." + fraction[:6].ljust(6, "0")
+        timestamp += (match.group(3) or "").replace("Z", "+00:00")
+        datetime.fromisoformat(timestamp)
     except ValueError as error:
         raise InitializationError("Embedding con fecha createdAt inválida.") from error
 

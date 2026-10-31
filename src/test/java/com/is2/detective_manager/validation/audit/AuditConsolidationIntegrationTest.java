@@ -28,6 +28,8 @@ import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
@@ -175,6 +177,55 @@ class AuditConsolidationIntegrationTest {
     assertThat(lastSnapshot.path("severity").asText()).isEqualTo("LLAMATIVO");
     assertThat(lastSnapshot.path("verdict").asText()).isEqualTo("CONTINUE");
     assertThat(assessments.findAllByTrackIdOrderByCreatedAtAsc(trackId)).hasSize(4);
+  }
+
+  @ParameterizedTest
+  @EnumSource(
+      value = Signal.class,
+      names = {"KNOWN_PERSON", "UNKNOWN_PERSON"})
+  void videoAuditPreservesApproachesAndReassuranceWithoutAddingRisk(Signal identity)
+      throws Exception {
+    UUID trackId = UUID.randomUUID();
+    UUID deviceId = UUID.randomUUID();
+    UUID imageId = UUID.randomUUID();
+    UUID videoId = UUID.randomUUID();
+    recordEvidence(
+        recorder,
+        trackId,
+        deviceId,
+        imageId,
+        ChunkType.IMAGE,
+        "FaceRecognitionStep",
+        List.of(identity, Signal.NO_THREAT_OBJECT),
+        null);
+    JsonNode image = read(trackId, imageId).path("consolidation");
+
+    recordEvidence(
+        recorder,
+        trackId,
+        deviceId,
+        videoId,
+        ChunkType.VIDEO,
+        "VideoAnalysisStep",
+        List.of(Signal.APPROACHING_CAMERA, Signal.FAST_APPROACH, Signal.NO_SUSPICIOUS_BEHAVIOR),
+        new VideoPresenceChunk("number:1", 1L, 5.0, LocalDateTime.now()));
+
+    JsonNode document = read(trackId, videoId);
+    JsonNode video = document.path("consolidation");
+    assertThat(document.path("steps").get(0).path("signals").toString())
+        .contains("APPROACHING_CAMERA", "FAST_APPROACH", "NO_SUSPICIOUS_BEHAVIOR");
+    assertThat(video.path("accumulatedSignals").toString())
+        .contains(identity.name(), "APPROACHING_CAMERA", "FAST_APPROACH", "NO_SUSPICIOUS_BEHAVIOR");
+    assertThat(video.path("severity")).isEqualTo(image.path("severity"));
+    assertThat(video.path("verdict")).isEqualTo(image.path("verdict"));
+    assertThat(video.path("winningRule").path("requires").toString())
+        .doesNotContain("APPROACHING_CAMERA", "FAST_APPROACH");
+    assertThat(video.path("message").asText())
+        .contains("No se detectó nada extraño en el video")
+        .doesNotContain("Revisá antes de abrir");
+    assertThat(assessments.findAllByTrackIdOrderByCreatedAtAsc(trackId))
+        .extracting(record -> record.getSignals())
+        .anySatisfy(signals -> assertThat(signals).contains("APPROACHING_CAMERA", "FAST_APPROACH"));
   }
 
   private void recordEvidence(

@@ -67,6 +67,7 @@ class ValidationCaseCatalogTest(unittest.TestCase):
         expected.update({f"1.{n}": "NORMAL" for n in range(1, 8)})
         expected.update({f"2.{n}": "LLAMATIVO" for n in range(1, 9)})
         expected.update({f"3.{n}": "SOSPECHOSO" if n <= 4 else "LLAMATIVO" for n in range(1, 8)})
+        expected["3.2"] = "PELIGROSO"
         expected.update(zip(
             (f"4.{n}" for n in range(1, 8)),
             ("LLAMATIVO", "NORMAL", "SOSPECHOSO", "LLAMATIVO", "LLAMATIVO", "SOSPECHOSO", "LLAMATIVO"),
@@ -98,6 +99,12 @@ class ValidationCaseCatalogTest(unittest.TestCase):
 
     def test_expected_signals_keep_manual_conditions_and_approved_visual_categories(self):
         cases = self.cases()
+        audio_32 = cases["3.2"]["evidence"]
+        self.assertEqual([entry["media_type"] for entry in audio_32], ["AUDIO"])
+        self.assertEqual(audio_32[0]["expected_signals"], [
+            {"signal": signal, "condition": "VALID_ANALYSIS", "scope": "evidence"}
+            for signal in ("MONEY_REQUEST", "URGENCY", "THREAT")
+        ])
         manual_62 = cases["6.2"]["evidence"][0]["expected_signals"]
         self.assertEqual(manual_62, [{"signal": "COVERED_FACE", "condition": "MANUAL_REVIEW", "scope": "evidence"}])
         manual_64 = cases["6.4"]["evidence"][1]["expected_signals"]

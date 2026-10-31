@@ -244,6 +244,38 @@ class InitializationIntegrityTest(InitializationFixtures):
         _, _, person, embedding = self.records_for(device)
         seed.validate_embedding(embedding, device, person)
 
+    def test_java_timestamp_precisions_are_accepted_without_changing_records(self):
+        device = self.config().devices[0]
+        _, _, person, base = self.records_for(device)
+        for digits in range(10):
+            fraction = "." + "718990123"[:digits] if digits else ""
+            for offset in ("", "Z", "+00:00", "-03:00"):
+                timestamp = "2026-10-30T22:14:48" + fraction + offset
+                with self.subTest(timestamp=timestamp):
+                    embedding = deepcopy(base)
+                    embedding["createdAt"] = timestamp
+                    original = deepcopy(embedding)
+                    seed.validate_embedding(embedding, device, person)
+                    self.assertEqual(embedding, original)
+
+    def test_invalid_timestamp_still_prevents_initialization(self):
+        device = self.config().devices[0]
+        _, _, person, base = self.records_for(device)
+        for timestamp in (
+            "2026-02-30T22:14:48.71899",
+            "2026-10-30T25:14:48.71899",
+            "2026-10-30T22:14:48.7189901234",
+            "2026-10-30T22:14:48.",
+            "2026-10-30T22:14:48.abcde",
+            "2026-10-30T22:14:48.71899+25:00",
+            "2026-10-30",
+        ):
+            with self.subTest(timestamp=timestamp):
+                embedding = deepcopy(base)
+                embedding["createdAt"] = timestamp
+                with self.assertRaisesRegex(seed.InitializationError, "createdAt inválida"):
+                    seed.validate_embedding(embedding, device, person)
+
     def test_rejects_wrong_embedding_ownership_and_missing_metadata(self):
         device = self.config().devices[0]
         _, _, person, base = self.records_for(device)

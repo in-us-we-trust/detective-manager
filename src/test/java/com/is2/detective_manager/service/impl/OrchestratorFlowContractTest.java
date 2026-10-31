@@ -309,6 +309,31 @@ class OrchestratorFlowContractTest {
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
+  void ordinaryApproachKeepsIdentityAssessmentAndPersistsInformationalSignals(boolean known) {
+    recognizedImageWithoutThreats();
+    if (!known) {
+      when(faceRecognizer.recognize(PAYLOAD, DEVICE_ID))
+          .thenReturn(FaceRecognitionOutcome.unknown());
+    }
+    EventChunkResponseDto image = send(ChunkType.IMAGE);
+    fastApproachVideo();
+
+    EventChunkResponseDto video = sendVideo(1);
+
+    assertEquals(image.getFinalSeverity(), video.getFinalSeverity());
+    assertEquals(image.getFinalVerdict(), video.getFinalVerdict());
+    assertTrue(video.getMessage().contains("No se detectó nada extraño en el video"));
+    assertFalse(video.getMessage().contains("Revisá antes de abrir"));
+    String persisted = videoRecords().get(0).getSignals();
+    assertTrue(persisted.contains("APPROACHING_CAMERA"));
+    assertTrue(persisted.contains("FAST_APPROACH"));
+    assertTrue(persisted.contains("NO_SUSPICIOUS_BEHAVIOR"));
+    assertTrue(storedTrack.getAccumulatedSignals().contains("FAST_APPROACH"));
+    verify(notificationPublisher, never()).publishIntruderDetected(any());
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
   void unknownDeliveryVisitorApproachingFastOnlyBecomesSuspiciousWithPressureAndUrgency(
       boolean pressureAndUrgency) throws Exception {
     when(faceRecognizer.recognize(PAYLOAD, DEVICE_ID)).thenReturn(FaceRecognitionOutcome.unknown());
@@ -423,8 +448,8 @@ class OrchestratorFlowContractTest {
 
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
-  void physicalVisitPatternTakesTheTitleRegardlessOfAudioArrivalOrder(boolean conversationFirst)
-      throws Exception {
+  void informationalApproachDoesNotDisplaceIndependentEvidenceRegardlessOfArrivalOrder(
+      boolean conversationFirst) throws Exception {
     coveredFaceImage();
     fastApproachVideo();
     when(conversationAnalyzer.analyze(PAYLOAD))
@@ -449,11 +474,11 @@ class OrchestratorFlowContractTest {
     assertTrue(
         response
             .getMessage()
-            .startsWith("Rostro cubierto: no permite ver bien quién es. Revisá antes de abrir."));
+            .startsWith("Verificá la identidad y el motivo del pedido antes de pagar."));
     assertTrue(
         response
             .getMessage()
-            .contains("Verificá la identidad y el motivo del pedido antes de pagar."));
+            .contains("Rostro cubierto: no permite ver bien quién es. Revisá antes de abrir."));
     assertEquals(3, records.stream().map(AssessmentRecord::getRequestId).distinct().count());
     assertEquals(TrackStatus.CREATED, storedTrack.getStatus());
     assertResponseContract(response);

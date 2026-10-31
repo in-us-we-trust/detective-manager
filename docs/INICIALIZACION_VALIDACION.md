@@ -41,6 +41,8 @@ python3 scripts/initialize-validation.py --config validation-data/seed.local.jso
 
 El script carga todas las referencias antes de crear registros. Si falta una imagen o está vacía, termina con un error y no realiza altas. Verifica ambos servicios, la exclusividad de las asociaciones de personas por dispositivo y la correspondencia entre imágenes y embeddings. El reconocimiento real comprueba las referencias contra los embeddings de su persona esperada. Los registros correctos se reutilizan; ante duplicados o inconsistencias termina con error, sin reparar ni borrar datos automáticamente. No modifica reglas, modelos, umbrales ni el procesamiento de eventos.
 
+Compatible con Python 3.9 o posterior. La comprobación de `createdAt` admite las fechas ISO de Java con hasta nueve decimales, sin alterar los registros ni las fechas almacenadas.
+
 Las ejecuciones deben ser secuenciales. El bloqueo local impide ejecutar simultáneamente el inicializador con el mismo archivo de configuración; no coordina configuraciones distintas ni procesos en otras máquinas. La API no ofrece una transacción conjunta para los dos dispositivos: un fallo de red puede dejar una parte ya completada. Los POST no se reintentan automáticamente después de un timeout; revisar el error y ejecutar nuevamente para releer el estado. El código de salida distinto de cero indica que no se confirmó una inicialización completa.
 
 Las referencias sirven para inscribir y verificar identidades. Para medir reconocimiento cuantitativo, usar material de evaluación independiente; el reconocimiento de las propias imágenes de inscripción no mide la generalización del modelo. No se ha realizado el registro definitivo mientras las referencias reales no estén disponibles.
